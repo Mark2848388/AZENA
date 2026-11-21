@@ -9,7 +9,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script src="https://meet.jit.si/external_api.js"></script>
 </head>
 <body>
   <!-- ============ LANDING (первый экран) ============ -->
@@ -333,15 +332,16 @@
 
       
       
-      <!-- LIVE VIDEO (Jitsi + PIP) -->
+      <!-- LIVE VIDEO (PeerJS P2P) -->
       <section id="page-video" class="page">
         <div class="page-header">
           <h1>Live-урок</h1>
         </div>
+
         <div class="video-setup" id="video-setup">
           <div class="card" style="max-width:520px">
             <h3>Видеоуроки</h3>
-            <p class="muted">Звонок откроется <b>маленьким окошком поверх приложения</b>. Можно параллельно смотреть класс и уроки.</p>
+            <p class="muted">Свой P2P-звонок без внешних сервисов и лимитов. Звонок откроется окошком поверх приложения.</p>
             <div class="form-group">
               <label>Код комнаты / класса</label>
               <input type="text" id="live-room-code" placeholder="Код класса" maxlength="32" />
@@ -351,7 +351,35 @@
               <input type="text" id="live-display-name" placeholder="Как тебя видно" />
             </div>
             <button id="join-live-btn" class="btn btn-primary btn-full">🎬 Начать / войти</button>
-            <p class="muted" style="margin-top:0.75rem;font-size:0.85rem">Без регистрации и ключей — комната по коду класса.</p>
+            <p class="muted" style="margin-top:0.75rem;font-size:0.85rem">
+              Учитель создаёт комнату, ученики входят по тому же коду класса.<br>
+              Нужен доступ к камере и микрофону. Лучше всего работает на HTTPS или localhost.
+            </p>
+            <p id="call-status" class="muted" style="margin-top:0.5rem;min-height:1.2em;"></p>
+          </div>
+        </div>
+
+        <div class="video-room hidden" id="video-room">
+          <div class="card video-room-card">
+            <div class="video-stage">
+              <video id="remote-video" autoplay playsinline></video>
+              <div id="remote-placeholder" class="remote-placeholder">Ожидание собеседника…</div>
+              <video id="local-video" autoplay playsinline muted></video>
+            </div>
+            <div class="video-toolbar">
+              <button type="button" id="toggle-mic" class="btn btn-outline btn-sm" title="Микрофон">🎤</button>
+              <button type="button" id="toggle-cam" class="btn btn-outline btn-sm" title="Камера">📷</button>
+              <button type="button" id="toggle-chat" class="btn btn-outline btn-sm" title="Чат">💬</button>
+              <button type="button" id="end-call" class="btn btn-danger btn-sm">Завершить</button>
+            </div>
+            <div id="chat-panel" class="chat-panel hidden">
+              <div id="chat-messages" class="chat-messages"></div>
+              <div class="chat-input-row">
+                <input type="text" id="chat-input" placeholder="Сообщение…" />
+                <button type="button" id="send-chat" class="btn btn-primary btn-sm">→</button>
+                <button type="button" id="close-chat" class="btn btn-outline btn-sm">×</button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -446,22 +474,22 @@
         <button type="button" id="pip-end" title="Выйти">✕</button>
       </div>
     </div>
-    <div id="jitsi-pip-frame" class="jitsi-pip-frame"></div>
+    <div class="pip-videos">
+      <video id="pip-remote" autoplay playsinline></video>
+      <video id="pip-local" autoplay playsinline muted></video>
+    </div>
     <div class="pip-controls">
       <button type="button" id="pip-mic" title="Микрофон">🎤</button>
       <button type="button" id="pip-cam" title="Камера">📷</button>
-      <button type="button" id="pip-screen" title="Экран">🖥️</button>
     </div>
   </div>
 
   <script>
     window.AZENA_SUPABASE_URL = 'https://ikcxvpkktgfptvnuwmfg.supabase.co';
     window.AZENA_SUPABASE_KEY = 'sb_publishable_TjChcoghcZ-5G27sY465XA_t5dePEjT';
-    window.DAILY_DOMAIN = localStorage.getItem('azena_daily_domain') || '';
-    window.DAILY_API_KEY = localStorage.getItem('azena_daily_key') || '';
     window.VEKTOR_API = 'https://throbbing-grass-315c.claudebote8.workers.dev/chat/completions';
   </script>
   
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

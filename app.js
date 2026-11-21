@@ -48,6 +48,7 @@ async function logout() {
   localStorage.removeItem(CLASSES_KEY); // clear legacy shared cache to avoid cross-account class leakage
   currentUser = null;
   endCallCleanup(true);
+  try { leaveLiveClassroom(); } catch (_) {}
   showScreen('landing');
 }
 function showScreen(name) {
@@ -150,7 +151,24 @@ function showPage(pageId) {
 // ==================== CLASSES ====================
 function classCacheKey(){return currentUser?`${CLASSES_KEY}:${currentUser.id}`:CLASSES_KEY;}
 function loadClasses() { const raw=localStorage.getItem(classCacheKey()); try{classes=raw?JSON.parse(raw):[];}catch{classes=[];} }
-async function loadCloudClasses(){ if(!supabaseClient||!currentUser)return; try{const {data,error}=await supabaseClient.rpc('get_my_classes');if(error)throw error;classes=(data||[]).filter(Boolean);localStorage.setItem(classCacheKey(),JSON.stringify(classes));}catch(error){console.warn('Cloud class load failed; using this account cache',error.message);loadClasses();} }
+async function loadCloudClasses(){
+  if(!supabaseClient||!currentUser)return;
+  try{
+    const {data,error}=await supabaseClient.rpc('get_my_classes');
+    if(error)throw error;
+    // Normalize snake_case from Postgres → camelCase used in the app
+    classes=(data||[]).filter(Boolean).map(c => ({
+      ...c,
+      teacherId: c.teacherId || c.teacher_id,
+      teacherName: c.teacherName || c.teacher_name,
+      students: c.students || c.members || [],
+    }));
+    localStorage.setItem(classCacheKey(),JSON.stringify(classes));
+  }catch(error){
+    console.warn('Cloud class load failed; using this account cache',error.message);
+    loadClasses();
+  }
+}
 function saveClasses() {
   localStorage.setItem(classCacheKey(), JSON.stringify(classes));
   updateStats();
@@ -733,7 +751,9 @@ const ICE_CONFIG = {
 };
 
 function peerIdFromCode(code) {
-  return 'azena' + code;
+  // PeerJS IDs should be safe alphanumeric
+  const safe = String(code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return 'azena' + (safe || 'room');
 }
 
 function setStatus(text) {
@@ -751,13 +771,14 @@ function createPeerInstance(id) {
   peer.on('error', (err) => {
     console.error('Peer error', err);
     if (err.type === 'unavailable-id') {
-      setStatus('Код занят, генерирую новый…');
-      if (isHost) {
-        const newCode = String(Math.floor(100000 + Math.random() * 900000));
-        startHost(newCode);
-      }
+      // Fixed class peer-id is still held (previous tab / crash). Tell user to wait or reopen.
+      setStatus('ID комнаты ещё занят (возможно, старая вкладка). Закрой другие вкладки Azena и подожди 10–20 сек, затем снова «Начать».');
+      const pipStatus = document.getElementById('pip-status');
+      if (pipStatus) pipStatus.textContent = 'ID занят — подожди';
     } else if (err.type === 'peer-unavailable') {
-      setStatus('Комната не найдена: проверь код и попроси собеседника открыть комнату.');
+      setStatus('Комната не найдена: учитель ещё не вошёл или другой код.');
+    } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') {
+      setStatus('Проблема с сетью / сигнальным сервером. Проверь интернет и попробуй снова.');
     } else {
       setStatus('Ошибка: ' + (err.type || err.message));
     }
@@ -804,6 +825,8 @@ async function getLocalStream() {
   });
   const v = document.getElementById('local-video');
   if (v) v.srcObject = localStream;
+  const pipL = document.getElementById('pip-local');
+  if (pipL) pipL.srcObject = localStream;
   return localStream;
 }
 
@@ -841,7 +864,8 @@ function showPip() {
   const pipR = document.getElementById('pip-remote');
   if (local?.srcObject && pipL) pipL.srcObject = local.srcObject;
   if (remote?.srcObject && pipR) pipR.srcObject = remote.srcObject;
-  document.getElementById('pip-status').textContent = 'Звонок активен';
+  const st = document.getElementById('pip-status');
+  if (st) st.textContent = 'Звонок активен';
 }
 
 function hidePip() {
@@ -861,16 +885,25 @@ function expandFromPip() {
 function startHost(code) {
   isHost = true;
   currentRoomCode = code;
-  document.getElementById('room-code').textContent = code;
-  document.getElementById('room-created').classList.remove('hidden');
+  const roomCodeEl = document.getElementById('room-code');
+  if (roomCodeEl) roomCodeEl.textContent = code;
+  document.getElementById('room-created')?.classList.remove('hidden');
 
   const pid = peerIdFromCode(code);
   createPeerInstance(pid);
 
   peer.on('open', async () => {
     console.log('Host ready:', peer.id);
-    setStatus('Комната готова. Ждём друга…');
-    try { await getLocalStream(); } catch (e) { console.warn(e); }
+    setStatus('Комната готова. Ждём учеников…');
+    const pipStatus = document.getElementById('pip-status');
+    if (pipStatus) pipStatus.textContent = 'В эфире · ' + code + ' (хост)';
+    try {
+      await getLocalStream();
+      showVideoRoom();
+    } catch (e) {
+      console.warn(e);
+      alert('Нужен доступ к камере и микрофону');
+    }
   });
 }
 
@@ -1193,17 +1226,10 @@ async function saveCallLog(note){const entry={date:Date.now(),room:currentRoomCo
 
 
 
-// ==================== JITSI FLOATING PIP VIDEO ====================
-let jitsiApi = null;
-let liveMicOn = true;
-let liveCamOn = true;
-
-function showPip() {
-  document.getElementById('pip-video')?.classList.remove('hidden');
-}
-function hidePip() {
-  document.getElementById('pip-video')?.classList.add('hidden');
-}
+// ==================== PEERJS LIVE FROM CLASS ====================
+// Uses the existing PeerJS stack (createPeerInstance, getLocalStream, etc.)
+// Teacher becomes host with deterministic peer ID from class code.
+// Students join by calling that peer ID.
 
 function startLiveFromClass() {
   const cls = classes.find(c => c.id === currentClassId);
@@ -1220,113 +1246,119 @@ function startLiveFromClass() {
   setTimeout(() => joinLiveClassroom(), 150);
 }
 
-function joinLiveClassroom() {
+async function joinLiveClassroom() {
   const code = (document.getElementById('live-room-code')?.value || '').trim();
-  const name = (document.getElementById('live-display-name')?.value || currentUser?.name || 'Student').trim();
-  if (!code) {
-    alert('Укажи код комнаты / класса');
-    return;
-  }
-  if (typeof JitsiMeetExternalAPI === 'undefined') {
-    alert('Видео-модуль не загрузился. Проверь интернет и обнови страницу.');
-    return;
-  }
+  if (!code) { alert('Укажи код комнаты / класса'); return; }
+  if (!currentUser) { alert('Для видеозвонка войди в Azena.'); return; }
 
-  const roomName = 'Azena' + code.replace(/[^a-zA-Z0-9]/g, '');
-  const frame = document.getElementById('jitsi-pip-frame');
-  if (!frame) {
-    alert('Окно звонка не найдено');
-    return;
-  }
+  const cls = classes.find(c => String(c.code || '').toLowerCase() === code.toLowerCase());
+  // Teacher of this class becomes host. Also treat role=teacher as host when no class match.
+  const isTeacher = !!(cls && (cls.teacherId === currentUser.id || cls.teacher_id === currentUser.id))
+    || (!cls && currentUser.role === 'teacher');
 
-  // destroy previous
-  if (jitsiApi) {
-    try { jitsiApi.dispose(); } catch (_) {}
-    jitsiApi = null;
-  }
-  frame.innerHTML = '';
+  // Clean previous call
+  if (peer || currentCall || localStream) endCallCleanup(false);
 
-  document.getElementById('pip-status').textContent = 'Подключение…';
-  showPip();
+  setStatus('Подключение…');
+  const pipStatus = document.getElementById('pip-status');
+  if (pipStatus) pipStatus.textContent = 'Подключение…';
 
-  jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
-    roomName,
-    parentNode: frame,
-    width: '100%',
-    height: '100%',
-    userInfo: { displayName: name },
-    configOverwrite: {
-      prejoinPageEnabled: false,
-      startWithAudioMuted: false,
-      startWithVideoMuted: false,
-      disableDeepLinking: true,
-      enableWelcomePage: false,
-      toolbarButtons: []  // hide full toolbar — we use our PIP controls
-    },
-    interfaceConfigOverwrite: {
-      SHOW_JITSI_WATERMARK: false,
-      SHOW_WATERMARK_FOR_GUESTS: false,
-      TOOLBAR_ALWAYS_VISIBLE: false,
-      INITIAL_TOOLBAR_TIMEOUT: 1,
-      TOOLBAR_TIMEOUT: 1,
-      filmStripOnly: false,
-      DEFAULT_REMOTE_DISPLAY_NAME: 'Участник'
+  try {
+    if (isTeacher) {
+      // Teacher: create host room with fixed Peer ID from class code
+      startHost(code);
+    } else {
+      // Student: join existing host (with retries)
+      await joinAsStudent(code, pipStatus);
     }
+  } catch (e) {
+    console.error(e);
+    alert('Не удалось начать звонок: ' + (e.message || e));
+    endCallCleanup(true);
+  }
+}
+
+async function joinAsStudent(code, pipStatus) {
+  isHost = false;
+  currentRoomCode = code;
+  const hostId = peerIdFromCode(code);
+
+  createPeerInstance();
+
+  await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('Таймаут подключения к сигнальному серверу')), 15000);
+    peer.on('open', () => { clearTimeout(t); resolve(); });
+    peer.on('error', (err) => {
+      if (err.type === 'peer-unavailable') return; // handled on call
+      clearTimeout(t);
+      reject(err);
+    });
   });
 
-  jitsiApi.addListener('videoConferenceJoined', () => {
-    document.getElementById('pip-status').textContent = 'В эфире · ' + code;
-    liveMicOn = true;
-    liveCamOn = true;
+  setStatus('Подключаемся к комнате ' + code + '…');
+  const stream = await getLocalStream();
+  showVideoRoom();
+
+  // Retry calling host a few times (teacher may still be opening camera)
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 5; attempt++) {
     try {
-      const n = parseInt(localStorage.getItem(CALLS_KEY) || '0', 10) + 1;
-      localStorage.setItem(CALLS_KEY, String(n));
-      updateStats();
-    } catch (_) {}
-  });
+      setStatus('Звоним учителю… (попытка ' + attempt + '/5)');
+      if (pipStatus) pipStatus.textContent = 'Звоним… ' + attempt + '/5';
 
-  jitsiApi.addListener('readyToClose', () => leaveLiveClassroom());
-  jitsiApi.addListener('videoConferenceLeft', () => leaveLiveClassroom());
+      const call = peer.call(hostId, stream);
+      if (!call) throw new Error('peer.call вернул null — хост не найден');
+
+      currentCall = call;
+      setupCallHandlers(call);
+
+      // Wait briefly for stream or error
+      const ok = await new Promise((resolve) => {
+        let done = false;
+        const finish = (v) => { if (!done) { done = true; resolve(v); } };
+        call.on('stream', () => finish(true));
+        call.on('error', (e) => { lastErr = e; finish(false); });
+        // PeerJS often emits peer-unavailable on the peer object, not the call
+        const onPeerErr = (err) => {
+          if (err.type === 'peer-unavailable') { lastErr = err; finish(false); }
+        };
+        peer.on('error', onPeerErr);
+        setTimeout(() => finish(false), 4000); // wait 4s per attempt
+      });
+
+      if (ok) {
+        dataConnection = peer.connect(hostId);
+        setupDataConn(dataConnection);
+        incrementCalls();
+        if (pipStatus) pipStatus.textContent = 'В эфире · ' + code;
+        setStatus('Звонок активен ✓');
+        return;
+      }
+
+      try { call.close(); } catch (_) {}
+      currentCall = null;
+      // wait a bit before retry
+      await new Promise(r => setTimeout(r, 1500));
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+
+  setStatus('Не удалось дозвониться. Убедись, что учитель уже нажал «Начать / войти».');
+  if (pipStatus) pipStatus.textContent = 'Нет ответа';
+  alert('Не удалось подключиться к учителю.\n\n1) Учитель должен сначала нажать «Начать / войти»\n2) Код класса должен совпадать\n3) Оба должны разрешить камеру/микрофон\n\n' + (lastErr?.type || lastErr?.message || ''));
 }
 
 function leaveLiveClassroom() {
-  if (jitsiApi) {
-    try { jitsiApi.dispose(); } catch (_) {}
-    jitsiApi = null;
-  }
-  const frame = document.getElementById('jitsi-pip-frame');
-  if (frame) frame.innerHTML = '';
-  hidePip();
-  document.getElementById('pip-status').textContent = 'В эфире';
+  endCallCleanup(true);
 }
 
-function dailyToggleMic() {
-  if (!jitsiApi) return;
-  liveMicOn = !liveMicOn;
-  jitsiApi.executeCommand('toggleAudio');
-  const btn = document.getElementById('pip-mic');
-  if (btn) {
-    btn.textContent = liveMicOn ? '🎤' : '🔇';
-    btn.classList.toggle('muted-state', !liveMicOn);
-  }
-}
-
-function dailyToggleCam() {
-  if (!jitsiApi) return;
-  liveCamOn = !liveCamOn;
-  jitsiApi.executeCommand('toggleVideo');
-  const btn = document.getElementById('pip-cam');
-  if (btn) {
-    btn.textContent = liveCamOn ? '📷' : '🚫';
-    btn.classList.toggle('muted-state', !liveCamOn);
-  }
-}
-
+// PiP controls reuse the same stream toggles
+function dailyToggleMic() { toggleMic(); }
+function dailyToggleCam() { toggleCam(); }
 function dailyToggleScreen() {
-  if (!jitsiApi) return;
-  try { jitsiApi.executeCommand('toggleShareScreen'); } catch (e) {
-    alert('Шаринг экрана: ' + e.message);
-  }
+  alert('Демонстрация экрана в P2P-режиме пока не поддерживается.');
 }
 
 function togglePipSize() {
@@ -1496,19 +1528,8 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsDataURL(file);
   });
 
-  // PIP controls
-  document.getElementById('pip-end')?.addEventListener('click', () => endCallCleanup(true));
-  document.getElementById('pip-expand')?.addEventListener('click', expandFromPip);
-  document.getElementById('pip-mic')?.addEventListener('click', toggleMic);
-  document.getElementById('pip-cam')?.addEventListener('click', toggleCam);
-  document.getElementById('pip-chat')?.addEventListener('click', () => {
-    expandFromPip();
-    document.getElementById('chat-panel')?.classList.remove('hidden');
-  });
-
-  // Vektor
+  // Daily PIP controls
   document.getElementById('join-live-btn')?.addEventListener('click', joinLiveClassroom);
-  document.getElementById('save-daily-settings')?.addEventListener('click', saveDailySettings);
   document.getElementById('pip-mic')?.addEventListener('click', dailyToggleMic);
   document.getElementById('pip-cam')?.addEventListener('click', dailyToggleCam);
   document.getElementById('pip-screen')?.addEventListener('click', dailyToggleScreen);
@@ -1538,6 +1559,11 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     showScreen('landing');
   }
+
+  // Clean up Whereby embed when leaving the page
+  window.addEventListener('beforeunload', () => {
+    try { leaveLiveClassroom(); } catch (_) {}
+  });
   } catch (err) {
     console.error('Azena init error', err);
     // still show landing so buttons work if possible

@@ -1858,3 +1858,209 @@ h1, h2, h3 {
   border: 1px solid rgba(255,255,255,0.3);
   object-fit: cover;
 }
+
+/* ===== Custom icons & brand ===== */
+.icon, .icon-sm, .icon-lg, .logo-mark {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  vertical-align: -0.2em;
+  flex-shrink: 0;
+}
+.icon-sm { width: 1.05rem; height: 1.05rem; }
+.icon-lg { width: 1.75rem; height: 1.75rem; }
+.logo-mark { width: 1.6rem; height: 1.6rem; color: var(--accent, #6366f1); }
+.logo-mark-lg { width: 3.2rem; height: 3.2rem; }
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.brand-name { font-family: 'Outfit', Inter, sans-serif; }
+.brand-dot { opacity: 0.55; font-weight: 500; }
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+}
+.nav-item .icon { width: 1.35rem; height: 1.35rem; }
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  padding: 0.4rem 0.55rem;
+}
+.card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent, #6366f1);
+  margin-bottom: 0.5rem;
+}
+
+/* Theme icons */
+.theme-btn .icon-sun,
+.theme-btn .icon-moon { display: none; }
+html[data-theme="light"] .theme-btn .icon-moon,
+html:not([data-theme]) .theme-btn .icon-moon { display: inline-flex; }
+html[data-theme="dark"] .theme-btn .icon-sun { display: inline-flex; }
+
+/* ===== Whiteboard ===== */
+.board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, #fff);
+  color: inherit;
+  cursor: pointer;
+}
+.tool-btn.active {
+  background: var(--accent, #6366f1);
+  color: #fff;
+  border-color: transparent;
+}
+.board-colors { display: inline-flex; gap: 0.3rem; margin-left: 0.35rem; }
+.color-swatch {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.color-swatch.active { box-shadow: 0 0 0 2px var(--accent, #6366f1); }
+.board-size-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted, #64748b);
+}
+.board-size-label input { width: 90px; }
+.whiteboard-wrap {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border, #e2e8f0);
+  background: #f8fafc;
+  touch-action: none;
+}
+html[data-theme="dark"] .whiteboard-wrap { background: #0f172a; }
+#whiteboard {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 55vh;
+  cursor: crosshair;
+}
+.board-notes { margin-top: 0.85rem; }
+.board-notes h4 { margin: 0 0 0.35rem; font-size: 0.95rem; }
+
+/* ===== Class chat ===== */
+.class-chat-box {
+  display: flex;
+  flex-direction: column;
+  height: min(55vh, 420px);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card-bg, #fff);
+}
+.class-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.class-chat-msg {
+  max-width: 85%;
+  padding: 0.45rem 0.7rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  background: var(--bg-soft, #f1f5f9);
+}
+.class-chat-msg.me {
+  align-self: flex-end;
+  background: var(--accent, #6366f1);
+  color: #fff;
+}
+.class-chat-msg .meta {
+  display: block;
+  font-size: 0.72rem;
+  opacity: 0.75;
+  margin-bottom: 0.15rem;
+}
+.class-chat-input-row {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+.class-chat-input-row input { flex: 1; }
+
+/* Class tabs with icons */
+.ctab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Call actions */
+.call-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+.btn-full { width: 100%; }
+
+/* Lesson creator */
+.lesson-templates, .task-quick-add {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+  margin-bottom: 1rem;
+}
+.task-block { border: 1px solid var(--border,#e2e8f0); border-radius: 12px; padding: 0.75rem; margin-bottom: 0.65rem; background: var(--card-bg,#fff); }
+.task-block-header { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.45rem; }
+
+/* Lessons toolbar */
+.lessons-toolbar { display: flex; gap: 0.5rem; margin-bottom: 0.85rem; flex-wrap: wrap; }
+.lessons-toolbar input, .lessons-toolbar select { flex: 1; min-width: 120px; }
+
+/* Home continue */
+.home-continue { margin-bottom: 1.25rem; }
+.home-continue h3 { margin: 0 0 0.5rem; }
+.continue-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 0.6rem; }
+.continue-card { text-align: left; cursor: pointer; }
+.continue-card strong { display: block; margin-bottom: 0.25rem; }
+
+/* Step lesson mode */
+.lesson-step-shell { max-width: 720px; }
+.lesson-step-top { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 0.75rem; }
+.lesson-progress-bar { height: 6px; background: var(--border,#e2e8f0); border-radius: 99px; overflow: hidden; margin-bottom: 0.5rem; }
+.lesson-progress-fill { height: 100%; background: var(--accent,#6366f1); transition: width .25s ease; }
+.lesson-step-card { background: var(--card-bg,#fff); border: 1px solid var(--border,#e2e8f0); border-radius: 14px; padding: 1.1rem; margin: 0.75rem 0; }
+.lesson-step-card h2 { margin: 0 0 0.35rem; font-size: 1.1rem; }
+.lesson-step-card h3 { margin: 0 0 0.75rem; font-size: 1.05rem; font-weight: 600; }
+.task-option { display: block; padding: 0.45rem 0.6rem; border-radius: 8px; margin-bottom: 0.3rem; background: var(--bg-soft,#f1f5f9); cursor: pointer; }
+.lesson-step-nav { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.75rem; }
+.lesson-classic-link { margin-top: 0.75rem; }
+.teacher-key { margin-top: 0.75rem; padding: 0.45rem 0.6rem; background: rgba(99,102,241,.08); border-radius: 8px; }
+
+/* Focus mode */
+body.focus-mode .sidebar,
+body.focus-mode .bottom-nav,
+body.focus-mode #vektor-fab { display: none !important; }
+body.focus-mode .app-content { margin: 0; max-width: 100%; }

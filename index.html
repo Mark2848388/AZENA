@@ -11,13 +11,54 @@
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
+
+  <!-- Icon sprite (minimal custom line icons) -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1v-10.5z"/></symbol>
+    <symbol id="i-classes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a1 1 0 0 1 1-1h6v16H5a1 1 0 0 1-1-1z"/><path d="M14 4h5a1 1 0 0 1 1 1v6h-6V4z"/><path d="M14 13h6v6a1 1 0 0 1-1 1h-5v-7z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2V5z"/><path d="M4 19a2 2 0 0 1 2-2h12"/><path d="M8 7h6"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3v-4z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/><path d="M8 22h8"/></symbol>
+    <symbol id="i-cam" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/><circle cx="10" cy="12" r="3"/><path d="m17 10 4-2v8l-4-2"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-lessons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></symbol>
+    <symbol id="i-homework" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 20c1.5-2.5 3.5-3.5 5.5-3.5"/></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/><path d="m8 12 2.5-2.5L13 12l3-3"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z"/></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4L14 4l6 6L8.4 21.6a1 1 0 0 1-1.4 0z"/><path d="M16 9 9 16"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 14-7-4 14-3-6-7-1z"/></symbol>
+    <symbol id="i-mic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m3 3 18 18"/><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9.3V5a3 3 0 0 0-5.7-1.3"/><path d="M5 11a7 7 0 0 0 11.3 5.3"/><path d="M19 11v1"/><path d="M12 18v4"/><path d="M8 22h8"/></symbol>
+    <symbol id="i-cam-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m3 3 18 18"/><path d="M7 7H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10"/><path d="M17 10l4-2v8"/><path d="M10.5 10.5a3 3 0 1 0 3 3"/></symbol>
+    <symbol id="i-voice" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v10"/><path d="M8 7v6M16 7v6M5 10v2M19 10v2"/></symbol>
+    <symbol id="i-athena" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Minimal Athena: owl + olive branch geometry -->
+      <circle cx="32" cy="32" r="28"/>
+      <ellipse cx="32" cy="34" rx="12" ry="14"/>
+      <circle cx="27" cy="32" r="2.5" fill="currentColor"/>
+      <circle cx="37" cy="32" r="2.5" fill="currentColor"/>
+      <path d="M32 35v5"/>
+      <path d="M28 42c2 2 6 2 8 0"/>
+      <path d="M20 22c4-6 10-8 12-8"/>
+      <path d="M44 22c-4-6-10-8-12-8"/>
+      <path d="M18 48c4 2 10 3 14 3s10-1 14-3"/>
+    </symbol>
+  </svg>
+
   <!-- ============ LANDING (первый экран) ============ -->
   <div id="landing" class="screen active">
     <header class="landing-header">
-      <div class="logo-text">AZENA<span>.sch</span></div>
+      <div class="logo-text brand-logo"><svg class="logo-mark" aria-hidden="true"><use href="#i-athena"></use></svg> <span class="brand-name">AZENA<span class="brand-dot">.sch</span></span></div>
       <button id="theme-toggle" class="theme-btn" title="Сменить тему">
-        <span class="icon-sun">☀️</span>
-        <span class="icon-moon">🌙</span>
+        <span class="icon-sun"><svg class="icon" aria-hidden="true"><use href="#i-sun"></use></svg></span>
+        <span class="icon-moon"><svg class="icon" aria-hidden="true"><use href="#i-moon"></use></svg></span>
       </button>
     </header>
 
@@ -34,7 +75,7 @@
         <div class="phone-frame">
           <div class="phone-notch"></div>
           <div class="phone-screen">
-            <div class="phone-logo">AZ</div>
+            <div class="phone-logo"><svg class="logo-mark logo-mark-lg" aria-hidden="true"><use href="#i-athena"></use></svg></div>
             <div class="phone-tagline">English with real people</div>
           </div>
         </div>
@@ -72,8 +113,8 @@
         <div class="form-group" id="role-group" style="display:none">
           <label>Роль</label>
           <div class="role-choice">
-            <label class="role-option"><input type="radio" name="role" value="student" checked> 👨‍🎓 Ученик</label>
-            <label class="role-option"><input type="radio" name="role" value="teacher"> 👨‍🏫 Учитель</label>
+            <label class="role-option"><input type="radio" name="role" value="student" checked> Ученик</label>
+            <label class="role-option"><input type="radio" name="role" value="teacher"> Учитель</label>
           </div>
         </div>
         <button type="submit" class="btn btn-primary btn-full" id="auth-submit">Войти</button>
@@ -88,52 +129,53 @@
   <!-- ============ APP SHELL ============ -->
   <div id="app" class="screen">
     <aside class="sidebar">
-      <div class="sidebar-logo">AZENA</div>
+      <div class="sidebar-logo brand-logo"><svg class="logo-mark" aria-hidden="true"><use href="#i-athena"></use></svg> <span class="brand-name">AZENA</span></div>
       <nav class="sidebar-nav">
         <button class="nav-item active" data-page="home">
-          <span class="nav-icon">🏠</span> <span class="nav-text">Главная</span>
+          <span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg></span> <span class="nav-text">Главная</span>
         </button>
         <button class="nav-item" data-page="classes">
-          <span class="nav-icon">🏫</span> <span class="nav-text">Классы</span>
+          <span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-classes"></use></svg></span> <span class="nav-text">Классы</span>
         </button>
         <button class="nav-item" data-page="dictionary">
-          <span class="nav-icon">📖</span> <span class="nav-text">Словарь</span>
+          <span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg></span> <span class="nav-text">Словарь</span>
         </button>
         <button class="nav-item" data-page="video">
-          <span class="nav-icon">📹</span> <span class="nav-text">Звонок</span>
+          <span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-video"></use></svg></span> <span class="nav-text">Звонок</span>
         </button>
         <button class="nav-item" data-page="profile">
-          <span class="nav-icon">👤</span> <span class="nav-text">Профиль</span>
+          <span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-user"></use></svg></span> <span class="nav-text">Профиль</span>
         </button>
       </nav>
       <div class="sidebar-footer">
-        <button id="logout-btn" class="btn btn-outline btn-sm">Выйти</button>
+        <button id="logout-btn" class="btn btn-outline btn-sm"><svg class="icon-sm" aria-hidden="true"><use href="#i-logout"></use></svg> Выйти</button>
       </div>
     </aside>
 
     <!-- Mobile bottom nav -->
     <nav class="bottom-nav">
-      <button class="nav-item active" data-page="home"><span class="nav-icon">🏠</span><span>Главная</span></button>
-      <button class="nav-item" data-page="classes"><span class="nav-icon">🏫</span><span>Классы</span></button>
-      <button class="nav-item" data-page="dictionary"><span class="nav-icon">📖</span><span>Словарь</span></button>
-      <button class="nav-item" data-page="video"><span class="nav-icon">📹</span><span>Звонок</span></button>
-      <button class="nav-item" data-page="profile"><span class="nav-icon">👤</span><span>Профиль</span></button>
+      <button class="nav-item active" data-page="home"><span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg></span><span>Главная</span></button>
+      <button class="nav-item" data-page="classes"><span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-classes"></use></svg></span><span>Классы</span></button>
+      <button class="nav-item" data-page="dictionary"><span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-book"></use></svg></span><span>Словарь</span></button>
+      <button class="nav-item" data-page="video"><span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-video"></use></svg></span><span>Звонок</span></button>
+      <button class="nav-item" data-page="profile"><span class="nav-icon"><svg class="icon" aria-hidden="true"><use href="#i-user"></use></svg></span><span>Профиль</span></button>
     </nav>
 
     <main class="app-content">
       <!-- HOME -->
       <section id="page-home" class="page active">
-        <h1>Привет, <span id="user-greeting">друг</span>! 👋</h1>
+        <h1>Привет, <span id="user-greeting">друг</span>!</h1>
         <p class="lead">Добро пожаловать в Azena — учи английский через живое общение.</p>
         
+        <div id="home-continue" class="home-continue hidden"></div>
         <div class="cards-grid">
           <div class="card feature-card" data-goto="classes">
-            <div class="card-icon">🏫</div>
+            <div class="card-icon"><svg class="icon-lg" aria-hidden="true"><use href="#i-classes"></use></svg></div>
             <h3>Классы</h3>
             <p>Уроки и задания внутри классов</p>
           </div>
           <div class="card feature-card" data-goto="video">
-            <div class="card-icon">📹</div>
+            <div class="card-icon"><svg class="icon-lg" aria-hidden="true"><use href="#i-video"></use></svg></div>
             <h3>Видеозвонок</h3>
             <p>Живое общение по короткому коду</p>
           </div>
@@ -161,7 +203,7 @@
           </div>
           <p class="phrase-en" id="phrase-en">How are you doing today?</p>
           <p class="phrase-ru" id="phrase-ru">Как у тебя дела сегодня?</p>
-          <button id="speak-phrase" class="btn btn-outline btn-sm" style="margin-top:0.75rem;">🔊 Произнести</button>
+          <button id="speak-phrase" class="btn btn-outline btn-sm" style="margin-top:0.75rem;"><svg class="icon-sm" aria-hidden="true"><use href="#i-voice"></use></svg> Произнести</button>
         </div>
       </section>
 
@@ -213,19 +255,24 @@
       <section id="page-class-view" class="page">
         <div class="page-header">
           <button class="btn btn-outline btn-sm" data-goto="classes">← Классы</button>
-          <div class="header-actions" id="class-teacher-actions" style="display:none">
-            <button class="btn btn-primary btn-sm" id="go-create-lesson">+ Урок</button>
-            <button class="btn btn-outline btn-sm" id="start-class-live">🎬 Начать live-урок</button>
+          <div class="header-actions">
+            <div id="class-teacher-actions" style="display:none">
+              <button class="btn btn-primary btn-sm" id="go-create-lesson">+ Урок</button>
+            </div>
+            <button class="btn btn-outline btn-sm" id="start-class-live"><svg class="icon-sm" aria-hidden="true"><use href="#i-video"></use></svg> Live</button>
+            <button class="btn btn-outline btn-sm" id="copy-class-invite" title="Скопировать приглашение">Код</button>
           </div>
         </div>
         <h1 id="class-view-name">—</h1>
         <p class="muted">Код: <strong id="class-view-code">—</strong> · Учитель: <span id="class-view-teacher">—</span> · Учеников: <span id="class-view-students">0</span></p>
 
         <div class="class-tabs">
-          <button class="ctab active" data-ctab="lessons">📚 Уроки</button>
-          <button class="ctab" data-ctab="homework">📝 Домашка</button>
-          <button class="ctab" data-ctab="students">👥 Участники</button>
-          <button class="ctab" data-ctab="vocab">📖 Словарь</button><button class="ctab" data-ctab="board">🧑‍🏫 Доска</button>
+          <button class="ctab active" data-ctab="lessons"><svg class="icon-sm" aria-hidden="true"><use href="#i-lessons"></use></svg> Уроки</button>
+          <button class="ctab" data-ctab="homework"><svg class="icon-sm" aria-hidden="true"><use href="#i-homework"></use></svg> Домашка</button>
+          <button class="ctab" data-ctab="students"><svg class="icon-sm" aria-hidden="true"><use href="#i-users"></use></svg> Участники</button>
+          <button class="ctab" data-ctab="vocab"><svg class="icon-sm" aria-hidden="true"><use href="#i-book"></use></svg> Словарь</button>
+          <button class="ctab" data-ctab="board"><svg class="icon-sm" aria-hidden="true"><use href="#i-board"></use></svg> Доска</button>
+          <button class="ctab" data-ctab="chat"><svg class="icon-sm" aria-hidden="true"><use href="#i-chat"></use></svg> Чат</button>
         </div>
 
         <p id="student-progress" class="muted"></p><div id="ctab-lessons" class="ctab-panel active">
@@ -246,14 +293,48 @@
           <div id="students-list" class="students-list"></div>
         </div>
 
-        <div id="ctab-board" class="ctab-panel"><h3>Общая текстовая доска</h3><textarea id="class-board" rows="6" placeholder="Заметки класса, вопросы, идеи…"></textarea><button id="save-board" class="btn btn-primary btn-sm">Сохранить</button></div>
+        <div id="ctab-board" class="ctab-panel">
+          <div class="board-toolbar">
+            <button type="button" class="tool-btn active" data-tool="pen" title="Кисть"><svg class="icon-sm" aria-hidden="true"><use href="#i-pen"></use></svg></button>
+            <button type="button" class="tool-btn" data-tool="eraser" title="Ластик"><svg class="icon-sm" aria-hidden="true"><use href="#i-eraser"></use></svg></button>
+            <button type="button" class="tool-btn" id="board-clear" title="Очистить"><svg class="icon-sm" aria-hidden="true"><use href="#i-trash"></use></svg></button>
+            <span class="board-colors">
+              <button type="button" class="color-swatch active" data-color="#6366f1" style="background:#6366f1"></button>
+              <button type="button" class="color-swatch" data-color="#ef4444" style="background:#ef4444"></button>
+              <button type="button" class="color-swatch" data-color="#22c55e" style="background:#22c55e"></button>
+              <button type="button" class="color-swatch" data-color="#eab308" style="background:#eab308"></button>
+              <button type="button" class="color-swatch" data-color="#0f172a" style="background:#0f172a"></button>
+              <button type="button" class="color-swatch" data-color="#ffffff" style="background:#fff;border:1px solid #cbd5e1"></button>
+            </span>
+            <label class="board-size-label">Толщина
+              <input type="range" id="board-size" min="2" max="24" value="4" />
+            </label>
+            <button type="button" id="save-board" class="btn btn-primary btn-sm">Сохранить доску</button>
+          </div>
+          <div class="whiteboard-wrap">
+            <canvas id="whiteboard" width="960" height="540"></canvas>
+          </div>
+          <div class="board-notes">
+            <h4>Заметки</h4>
+            <textarea id="class-board" rows="3" placeholder="Текстовые заметки к доске…"></textarea>
+          </div>
+        </div>
+        <div id="ctab-chat" class="ctab-panel">
+          <div class="class-chat-box">
+            <div id="class-chat-messages" class="class-chat-messages"></div>
+            <div class="class-chat-input-row">
+              <input type="text" id="class-chat-input" placeholder="Сообщение классу…" maxlength="500" />
+              <button type="button" id="class-chat-send" class="btn btn-primary btn-sm"><svg class="icon-sm" aria-hidden="true"><use href="#i-send"></use></svg> Отправить</button>
+            </div>
+          </div>
+        </div>
         <div id="ctab-vocab" class="ctab-panel">
           <div class="vocab-add teacher-only" style="margin-bottom:1rem">
             <input type="text" id="vocab-word" placeholder="Word" style="width:30%;margin-right:0.4rem" />
             <input type="text" id="vocab-trans" placeholder="Перевод" style="width:30%;margin-right:0.4rem" />
             <button class="btn btn-primary btn-sm" id="add-vocab-btn">+ Добавить</button>
           </div>
-          <div id="vocab-list" class="vocab-list"></div><button id="vocab-practice" class="btn btn-outline btn-sm" style="margin-top:1rem">🎴 Тренировать карточки</button>
+          <div id="vocab-list" class="vocab-list"></div><button id="vocab-practice" class="btn btn-outline btn-sm" style="margin-top:1rem">Тренировать карточки</button>
         </div>
       </section>
 
@@ -265,6 +346,14 @@
         </div>
         <form id="lesson-form" class="lesson-form">
           <input type="hidden" id="lesson-id" />
+          <div class="lesson-templates">
+            <span class="muted">Шаблоны:</span>
+            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="grammar">Грамматика</button>
+            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="vocab">Словарь</button>
+            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="speaking">Speaking</button>
+            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="reading">Reading</button>
+            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="homework">Домашка</button>
+          </div>
           <div class="form-group">
             <label for="lesson-title">Название урока *</label>
             <input type="text" id="lesson-title" placeholder="Present Perfect" required />
@@ -306,8 +395,17 @@
           </div>
           <div class="form-group">
             <label>Задания</label>
+            <div class="task-quick-add">
+              <button type="button" class="btn btn-outline btn-sm" data-quick-task="open">Открытый ответ</button>
+              <button type="button" class="btn btn-outline btn-sm" data-quick-task="choice">Тест</button>
+              <button type="button" class="btn btn-outline btn-sm" data-quick-task="truefalse">Верно/неверно</button>
+              <button type="button" class="btn btn-outline btn-sm" data-quick-task="fill">Пропуски</button>
+              <button type="button" class="btn btn-outline btn-sm" data-quick-task="order">Порядок слов</button>
+              <button type="button" class="btn btn-outline btn-sm" data-quick-task="match">Сопоставление</button>
+            </div>
             <div id="tasks-builder"></div>
             <button type="button" class="btn btn-outline btn-sm" id="add-task-btn" style="margin-top:0.5rem">+ Добавить задание</button>
+            <p class="muted" style="font-size:0.8rem;margin-top:0.35rem">Перетаскивайте задания за «⋮⋮» чтобы менять порядок.</p>
           </div>
           <div class="form-group teacher-only"><label for="lesson-deadline">Дедлайн домашки (необязательно)</label><input id="lesson-deadline" type="datetime-local" /></div>
           <div class="form-actions">
@@ -350,10 +448,13 @@
               <label>Имя в звонке</label>
               <input type="text" id="live-display-name" placeholder="Как тебя видно" />
             </div>
-            <button id="join-live-btn" class="btn btn-primary btn-full">🎬 Начать / войти</button>
+            <div class="call-actions">
+              <button type="button" id="host-live-btn" class="btn btn-primary btn-full"><svg class="icon-sm" aria-hidden="true"><use href="#i-video"></use></svg> Создать комнату (хост)</button>
+              <button type="button" id="join-live-btn" class="btn btn-outline btn-full"><svg class="icon-sm" aria-hidden="true"><use href="#i-users"></use></svg> Присоединиться</button>
+            </div>
             <p class="muted" style="margin-top:0.75rem;font-size:0.85rem">
-              Учитель создаёт комнату, ученики входят по тому же коду класса.<br>
-              Нужен доступ к камере и микрофону. Лучше всего работает на HTTPS или localhost.
+              Любой участник может создать комнату или войти в уже созданную — роль не важна.<br>
+              Один человек нажимает «Создать комнату», второй — «Присоединиться» с тем же кодом.
             </p>
             <p id="call-status" class="muted" style="margin-top:0.5rem;min-height:1.2em;"></p>
           </div>
@@ -367,9 +468,9 @@
               <video id="local-video" autoplay playsinline muted></video>
             </div>
             <div class="video-toolbar">
-              <button type="button" id="toggle-mic" class="btn btn-outline btn-sm" title="Микрофон">🎤</button>
-              <button type="button" id="toggle-cam" class="btn btn-outline btn-sm" title="Камера">📷</button>
-              <button type="button" id="toggle-chat" class="btn btn-outline btn-sm" title="Чат">💬</button>
+              <button type="button" id="toggle-mic" class="btn btn-outline btn-sm icon-btn" title="Микрофон"><svg class="icon" aria-hidden="true"><use href="#i-mic"></use></svg></button>
+              <button type="button" id="toggle-cam" class="btn btn-outline btn-sm icon-btn" title="Камера"><svg class="icon" aria-hidden="true"><use href="#i-cam"></use></svg></button>
+              <button type="button" id="toggle-chat" class="btn btn-outline btn-sm icon-btn" title="Чат"><svg class="icon" aria-hidden="true"><use href="#i-chat"></use></svg></button>
               <button type="button" id="end-call" class="btn btn-danger btn-sm">Завершить</button>
             </div>
             <div id="chat-panel" class="chat-panel hidden">
@@ -386,7 +487,7 @@
 
       <!-- PERSONAL DICTIONARY -->
       <section id="page-dictionary" class="page">
-        <div class="page-header"><h1>Мой словарь 📖</h1><p class="muted">Личные слова синхронизируются между устройствами.</p></div>
+        <div class="page-header"><h1>Мой словарь</h1><p class="muted">Личные слова синхронизируются между устройствами.</p></div>
         <div class="card personal-dictionary-card">
           <div class="vocab-add personal-vocab-add">
             <input type="text" id="personal-vocab-word" placeholder="English word or phrase" />
@@ -394,7 +495,7 @@
             <button id="personal-vocab-add" class="btn btn-primary btn-sm">Добавить слово</button>
           </div>
           <div id="personal-vocab-list" class="vocab-list"></div>
-          <button id="personal-vocab-practice" class="btn btn-outline btn-sm" style="margin-top:1rem">🎴 Тренировать карточки</button>
+          <button id="personal-vocab-practice" class="btn btn-outline btn-sm" style="margin-top:1rem">Тренировать карточки</button>
         </div>
       </section>
 
@@ -405,7 +506,7 @@
           <div class="avatar-wrap">
             <div class="profile-avatar" id="profile-avatar">A</div>
             <label class="avatar-upload-btn" title="Сменить фото">
-              📷
+              <svg class="icon-sm" aria-hidden="true"><use href="#i-cam"></use></svg>
               <input type="file" id="avatar-input" accept="image/*" hidden />
             </label>
           </div>
@@ -458,7 +559,7 @@
     <div id="vektor-messages" class="vektor-messages">
       <div class="vektor-msg bot">Привет. Я Vektor — помогу с английским: правило, исправление, фраза для разговора.</div>
     </div>
-    <div class="vektor-quick-actions"><button id="vektor-prepare-call">📞 5 фраз к звонку</button><button id="vektor-voice">🎙 Голос</button></div>
+    <div class="vektor-quick-actions"><button id="vektor-prepare-call"><svg class="icon-sm" aria-hidden="true"><use href="#i-chat"></use></svg> 5 фраз к звонку</button><button id="vektor-voice"><svg class="icon-sm" aria-hidden="true"><use href="#i-voice"></use></svg> Голос</button></div>
     <div class="vektor-input-row">
       <input type="text" id="vektor-input" placeholder="Спроси Vektor..." />
       <button id="vektor-send" class="vektor-go">↑</button>
@@ -470,8 +571,8 @@
     <div class="pip-header">
       <span id="pip-status">В эфире</span>
       <div class="pip-actions">
-        <button type="button" id="pip-expand" title="Крупнее">⛶</button>
-        <button type="button" id="pip-end" title="Выйти">✕</button>
+        <button type="button" id="pip-expand" title="Крупнее"><svg class="icon-sm" aria-hidden="true"><use href="#i-expand"></use></svg></button>
+        <button type="button" id="pip-end" title="Выйти"><svg class="icon-sm" aria-hidden="true"><use href="#i-close"></use></svg></button>
       </div>
     </div>
     <div class="pip-videos">
@@ -479,8 +580,8 @@
       <video id="pip-local" autoplay playsinline muted></video>
     </div>
     <div class="pip-controls">
-      <button type="button" id="pip-mic" title="Микрофон">🎤</button>
-      <button type="button" id="pip-cam" title="Камера">📷</button>
+      <button type="button" id="pip-mic" title="Микрофон"><svg class="icon-sm" aria-hidden="true"><use href="#i-mic"></use></svg></button>
+      <button type="button" id="pip-cam" title="Камера"><svg class="icon-sm" aria-hidden="true"><use href="#i-cam"></use></svg></button>
     </div>
   </div>
 
@@ -490,6 +591,6 @@
     window.VEKTOR_API = 'https://throbbing-grass-315c.claudebote8.workers.dev/chat/completions';
   </script>
   
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

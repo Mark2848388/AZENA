@@ -1120,30 +1120,112 @@ async function getLocalStream() {
   if (localStream) return localStream;
   localStream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: 'user' },
-    audio: true
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true
+    }
   });
   const v = document.getElementById('local-video');
-  if (v) v.srcObject = localStream;
+  if (v) {
+    v.srcObject = localStream;
+    v.muted = true;
+    v.play?.().catch(() => {});
+  }
   const pipL = document.getElementById('pip-local');
-  if (pipL) { pipL.srcObject = localStream; pipL.muted = true; pipL.play?.().catch(() => {}); }
+  if (pipL) {
+    pipL.srcObject = localStream;
+    pipL.muted = true;
+    pipL.play?.().catch(() => {});
+  }
   return localStream;
+}
+
+/** Attach remote MediaStream to video elements with mobile autoplay-safe play. */
+function attachRemoteStream(remoteStream) {
+  if (!remoteStream) return;
+
+  // Ensure tracks are live (sometimes arrive muted/disabled after renegotiation)
+  try {
+    remoteStream.getTracks().forEach((t) => {
+      if (t.readyState === 'live' && t.enabled === false) t.enabled = true;
+    });
+  } catch (_) {}
+
+  const apply = (el) => {
+    if (!el) return;
+    el.srcObject = remoteStream;
+    el.setAttribute('playsinline', '');
+    el.setAttribute('autoplay', '');
+    // Start muted so browsers allow autoplay, then unmute after play succeeds
+    el.muted = true;
+    const tryPlay = () => {
+      const p = el.play?.();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          el.muted = false;
+        }).catch((err) => {
+          console.warn('remote video play blocked, will retry on tap', err);
+          const unlock = () => {
+            el.muted = false;
+            el.play?.().catch(() => {});
+            document.removeEventListener('pointerdown', unlock);
+            document.removeEventListener('touchstart', unlock);
+          };
+          document.addEventListener('pointerdown', unlock, { once: true });
+          document.addEventListener('touchstart', unlock, { once: true });
+        });
+      } else {
+        el.muted = false;
+      }
+    };
+    tryPlay();
+  };
+
+  apply(document.getElementById('remote-video'));
+  apply(document.getElementById('pip-remote'));
+
+  document.getElementById('remote-placeholder')?.classList.add('hidden');
+  document.getElementById('pip-no-remote')?.classList.add('hidden');
+  setStatus('Звонок активен ✓');
+  showPip();
 }
 
 function setupCallHandlers(call) {
   call.on('stream', (remoteStream) => {
-    const rv = document.getElementById('remote-video');
-    if (rv) rv.srcObject = remoteStream;
-    document.getElementById('remote-placeholder')?.classList.add('hidden');
-    setStatus('Звонок активен ✓');
-    const pipR = document.getElementById('pip-remote');
-    if (pipR) { pipR.srcObject = remoteStream; pipR.muted = false; pipR.play?.().catch(() => {}); }
-    document.getElementById('pip-no-remote')?.classList.add('hidden');
-    showPip();
+    attachRemoteStream(remoteStream);
   });
+
+  // Some PeerJS/WebRTC stacks fire stream once; also watch connection state
+  try {
+    const pc = call.peerConnection || call._pc || call.pc;
+    if (pc) {
+      pc.addEventListener('track', (ev) => {
+        if (ev.streams?.[0]) attachRemoteStream(ev.streams[0]);
+      });
+      pc.addEventListener('connectionstatechange', () => {
+        const st = pc.connectionState;
+        if (st === 'failed' || st === 'disconnected') {
+          setStatus('Связь оборвалась (' + st + '). Включи «Надёжный режим» и переподключись.');
+        } else if (st === 'connected') {
+          setStatus('Звонок активен ✓');
+        }
+      });
+      pc.addEventListener('iceconnectionstatechange', () => {
+        const st = pc.iceConnectionState;
+        if (st === 'failed') {
+          setStatus('ICE failed — включи «Надёжный режим» (TURN) и начни звонок заново.');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('pc listeners', e);
+  }
+
   call.on('close', () => endCallCleanup(false));
   call.on('error', (err) => {
     console.error(err);
-    setStatus('Ошибка звонка');
+    setStatus('Ошибка звонка: ' + (err?.type || err?.message || ''));
   });
 }
 
@@ -1157,13 +1239,14 @@ function showPip() {
   const pip = document.getElementById('pip-video');
   if (!pip) return;
   pip.classList.remove('hidden');
-  // sync streams
+  // sync local only here; remote is handled by attachRemoteStream to avoid loops
   const local = document.getElementById('local-video');
-  const remote = document.getElementById('remote-video');
   const pipL = document.getElementById('pip-local');
-  const pipR = document.getElementById('pip-remote');
-  if (local?.srcObject && pipL) { pipL.srcObject = local.srcObject; pipL.muted = true; pipL.play?.().catch(() => {}); }
-  if (remote?.srcObject && pipR) { pipR.srcObject = remote.srcObject; pipR.muted = false; pipR.play?.().catch(() => {}); }
+  if (local?.srcObject && pipL) {
+    pipL.srcObject = local.srcObject;
+    pipL.muted = true;
+    pipL.play?.().catch(() => {});
+  }
   const st = document.getElementById('pip-status');
   if (st) st.textContent = 'Звонок активен';
 }
@@ -1193,8 +1276,8 @@ function startHost(code) {
   const pid = peerIdFromCode(code);
   createPeerInstance(pid);
 
-  peer.on('open', async () => {
-    console.log('Host ready:', peer.id);
+  const onHostOpen = async () => {
+    console.log('Host ready:', peer?.id);
     setStatus('Комната готова. Ждём учеников…');
     const pipStatus = document.getElementById('pip-status');
     if (pipStatus) pipStatus.textContent = 'В эфире · ' + code + ' (хост)';
@@ -1205,7 +1288,14 @@ function startHost(code) {
       console.warn(e);
       alert('Нужен доступ к камере и микрофону');
     }
-  });
+  };
+
+  // Avoid race: if Peer already opened before listener was attached
+  if (peer && peer.open) {
+    onHostOpen();
+  } else if (peer) {
+    peer.on('open', onHostOpen);
+  }
 }
 
 function createRoom() {

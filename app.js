@@ -995,38 +995,43 @@ function escapeHtml(str) {
 }
 
 // ==================== VIDEO ====================
-// More STUN/TURN → higher chance of P2P through strict NATs / mobile networks
+// Checked 2026-11-22:
+//   STUN OK: Google 1–4, Cloudflare, voipbuster, voipstunt
+//   TURN FAIL: openrelay.metered.ca, relay.metered.ca+old keys, freeturn.net (DNS gone),
+//              public openrelayproject login (dead ~2026-10)
+// No reliable free public TURN without your own account.
+// Optional: free 20 GB/mo at https://www.metered.ca/tools/openrelay/ → add YOUR keys below.
 const ICE_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
     { urls: 'stun:stun.cloudflare.com:3478' },
-    // Open Relay (free public TURN)
-    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    // Metered free ice (no account required for public demo endpoints)
-    { urls: 'turn:relay.metered.ca:80', username: 'e8dd65cf38c15e20f4775eba', credential: 'u9kP2vYkL9nR8mXq' },
-    { urls: 'turn:relay.metered.ca:443', username: 'e8dd65cf38c15e20f4775eba', credential: 'u9kP2vYkL9nR8mXq' },
-    { urls: 'turn:relay.metered.ca:443?transport=tcp', username: 'e8dd65cf38c15e20f4775eba', credential: 'u9kP2vYkL9nR8mXq' }
+    { urls: 'stun:stun.voipbuster.com:3478' },
+    { urls: 'stun:stun.voipstunt.com:3478' }
+    // After you create Metered credentials, uncomment and fill:
+    // { urls: 'turn:global.relay.metered.ca:80', username: 'YOUR_USER', credential: 'YOUR_PASS' },
+    // { urls: 'turn:global.relay.metered.ca:443', username: 'YOUR_USER', credential: 'YOUR_PASS' },
+    // { urls: 'turn:global.relay.metered.ca:443?transport=tcp', username: 'YOUR_USER', credential: 'YOUR_PASS' },
   ],
   iceCandidatePoolSize: 10
 };
 
-// Optional: force relay if user enables "Надёжный режим"
+// "Надёжный режим" = relay-only. Without TURN this always fails — keep OFF.
 let forceRelay = localStorage.getItem('azena_force_relay') === '1';
 
 function getPeerOptions(id) {
-  const config = {
-    ...ICE_CONFIG,
-    iceTransportPolicy: forceRelay ? 'relay' : 'all'
-  };
+  const hasTurn = (ICE_CONFIG.iceServers || []).some((s) => {
+    const u = s.urls || s.url || '';
+    return String(u).startsWith('turn:') || String(u).startsWith('turns:');
+  });
+  // Never force relay if we have no TURN — media would never connect
+  const policy = forceRelay && hasTurn ? 'relay' : 'all';
   return {
-    debug: 1,
-    config,
-    // public PeerJS cloud; longer timeouts help on mobile
+    debug: 2,
+    config: { ...ICE_CONFIG, iceTransportPolicy: policy },
     host: '0.peerjs.com',
     port: 443,
     path: '/',

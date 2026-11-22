@@ -514,7 +514,7 @@
               <label>Имя в звонке</label>
               <input type="text" id="live-display-name" placeholder="Как тебя видно" />
             </div>
-            <label class="relay-toggle"><input type="checkbox" id="force-relay-toggle" /> Надёжный режим (через TURN — если звонок «не цепляется»)</label>
+            <label class="relay-toggle"><input type="checkbox" id="force-relay-toggle" /> Надёжный режим (только TURN) — сейчас не нужен: публичных TURN нет. Оставь выключенным.</label>
             <div class="call-actions">
               <button type="button" id="host-live-btn" class="btn btn-primary btn-full"><svg class="icon-sm" aria-hidden="true"><use href="#i-video"></use></svg> Создать комнату (хост)</button>
               <button type="button" id="join-live-btn" class="btn btn-outline btn-full"><svg class="icon-sm" aria-hidden="true"><use href="#i-users"></use></svg> Присоединиться</button>
@@ -660,6 +660,6 @@
     window.VEKTOR_API = 'https://throbbing-grass-315c.claudebote8.workers.dev/chat/completions';
   </script>
   
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

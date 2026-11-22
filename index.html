@@ -162,53 +162,78 @@
     </nav>
 
     <main class="app-content">
-      <!-- HOME -->
-      <section id="page-home" class="page active">
-        <h1>Привет, <span id="user-greeting">друг</span>!</h1>
-        <p class="lead">Добро пожаловать в Azena — учи английский через живое общение.</p>
-        
+      <!-- HOME: AZENA DASHBOARD 2.1 -->
+      <section id="page-home" class="page active home-dashboard">
+        <div class="home-topbar">
+          <div class="home-brandline">
+            <span class="home-eyebrow">AZENA LEARNING SPACE</span>
+            <span class="home-date" id="home-date-label">ТВОЁ ПРОСТРАНСТВО ДЛЯ РОСТА</span>
+          </div>
+          <button class="home-profile-shortcut" data-goto="profile" aria-label="Открыть профиль">
+            <span class="home-avatar-mini"><svg class="icon"><use href="#i-user"></use></svg></span>
+            <span>Мой профиль</span>
+            <span class="home-arrow">↗</span>
+          </button>
+        </div>
+
+        <section class="home-welcome">
+          <div class="home-welcome-copy">
+            <span class="home-kicker"><span class="home-kicker-dot"></span> ТВОЙ ПУТЬ К НОВЫМ ЗНАНИЯМ</span>
+            <h1>Привет, <span id="user-greeting">друг</span>!<br><em>Продолжим учиться?</em></h1>
+            <p class="lead">Твоё пространство для уроков, общения и уверенного прогресса в английском.</p>
+            <div class="home-welcome-actions">
+              <button class="btn home-primary-action" data-goto="classes">Перейти к классам <span>→</span></button>
+              <button class="btn home-secondary-action" data-goto="video"><svg class="icon-sm"><use href="#i-video"></use></svg> Начать звонок</button>
+            </div>
+          </div>
+          <div class="home-welcome-art" aria-hidden="true">
+            <div class="home-orbit orbit-one"></div><div class="home-orbit orbit-two"></div>
+            <div class="home-art-glow"></div>
+            <div class="home-book-stack"><span class="book book-back"></span><span class="book book-mid"></span><span class="book book-front"><b>A</b><small>LEARN</small></span></div>
+            <div class="home-art-star star-a">✦</div><div class="home-art-star star-b">✧</div>
+            <div class="home-art-pill">SMALL STEPS. BIG RESULTS.</div>
+          </div>
+        </section>
+
         <div id="home-continue" class="home-continue hidden"></div>
-        <div class="cards-grid">
-          <div class="card feature-card" data-goto="classes">
-            <div class="card-icon"><svg class="icon-lg" aria-hidden="true"><use href="#i-classes"></use></svg></div>
-            <h3>Классы</h3>
-            <p>Уроки и задания внутри классов</p>
-          </div>
-          <div class="card feature-card" data-goto="video">
-            <div class="card-icon"><svg class="icon-lg" aria-hidden="true"><use href="#i-video"></use></svg></div>
-            <h3>Видеозвонок</h3>
-            <p>Живое общение по короткому коду</p>
-          </div>
-        </div>
 
-        <div class="stats-row">
-          <div class="stat">
-            <div class="stat-value" id="stat-classes">0</div>
-            <div class="stat-label">Классов</div>
+        <section class="home-section">
+          <div class="home-section-heading">
+            <div><span class="home-section-overline">ТВОЯ АКТИВНОСТЬ</span><h2>Обзор обучения</h2></div>
+            <span class="home-section-note">Всё самое важное — здесь</span>
           </div>
-          <div class="stat">
-            <div class="stat-value" id="stat-lessons">0</div>
-            <div class="stat-label">Уроков</div>
+          <div class="home-stats-grid">
+            <div class="home-stat-card stat-classes-card"><div class="home-stat-icon"><svg class="icon"><use href="#i-classes"></use></svg></div><div class="stat-value" id="stat-classes">0</div><div class="stat-label">Мои классы</div><span class="home-stat-foot">Учись вместе с другими</span></div>
+            <div class="home-stat-card stat-lessons-card"><div class="home-stat-icon"><svg class="icon"><use href="#i-lessons"></use></svg></div><div class="stat-value" id="stat-lessons">0</div><div class="stat-label">Доступно уроков</div><span class="home-stat-foot">Новые знания каждый день</span></div>
+            <div class="home-stat-card stat-calls-card"><div class="home-stat-icon"><svg class="icon"><use href="#i-video"></use></svg></div><div class="stat-value" id="stat-calls">0</div><div class="stat-label">Видеозвонков</div><span class="home-stat-foot">Практика живого общения</span></div>
           </div>
-          <div class="stat">
-            <div class="stat-value" id="stat-calls">0</div>
-            <div class="stat-label">Звонков</div>
-          </div>
-        </div>
+        </section>
 
-        <div class="card daily-phrase-card" style="margin-top:2rem;">
-          <div class="daily-header">
-            <span class="daily-badge">Фраза дня</span>
-            <button id="new-phrase-btn" class="btn btn-outline btn-sm">Другая</button>
+        <section class="home-section home-quick-section">
+          <div class="home-section-heading"><div><span class="home-section-overline">БЫСТРЫЙ ДОСТУП</span><h2>Куда отправимся?</h2></div></div>
+          <div class="home-quick-grid">
+            <button class="home-quick-card quick-classes" data-goto="classes"><span class="home-quick-icon"><svg class="icon-lg"><use href="#i-classes"></use></svg></span><span class="home-quick-text"><b>Мои классы</b><small>Уроки, задания и общение</small></span><span class="home-quick-arrow">↗</span></button>
+            <button class="home-quick-card quick-dictionary" data-goto="dictionary"><span class="home-quick-icon"><svg class="icon-lg"><use href="#i-book"></use></svg></span><span class="home-quick-text"><b>Словарь</b><small>Сохраняй и повторяй слова</small></span><span class="home-quick-arrow">↗</span></button>
+            <button class="home-quick-card quick-video" data-goto="video"><span class="home-quick-icon"><svg class="icon-lg"><use href="#i-video"></use></svg></span><span class="home-quick-text"><b>Видеозвонок</b><small>Практикуй разговорный английский</small></span><span class="home-quick-arrow">↗</span></button>
           </div>
-          <p class="phrase-en" id="phrase-en">How are you doing today?</p>
-          <p class="phrase-ru" id="phrase-ru">Как у тебя дела сегодня?</p>
-          <button id="speak-phrase" class="btn btn-outline btn-sm" style="margin-top:0.75rem;"><svg class="icon-sm" aria-hidden="true"><use href="#i-voice"></use></svg> Произнести</button>
-        </div>
+        </section>
+
+        <section class="home-phrase-panel">
+          <div class="home-phrase-decoration">“</div>
+          <div class="home-phrase-content">
+            <span class="home-section-overline">ТВОЙ ЕЖЕДНЕВНЫЙ МОМЕНТ АНГЛИЙСКОГО</span>
+            <div class="daily-header"><span class="daily-badge">Фраза дня</span><button id="new-phrase-btn" class="btn btn-outline btn-sm">Другая фраза ↻</button></div>
+            <p class="phrase-en" id="phrase-en">How are you doing today?</p>
+            <p class="phrase-ru" id="phrase-ru">Как у тебя дела сегодня?</p>
+            <button id="speak-phrase" class="btn btn-outline btn-sm home-speak"><svg class="icon-sm"><use href="#i-voice"></use></svg> Произнести фразу</button>
+          </div>
+          <div class="home-phrase-side"><span>01</span><b>LEARN</b><small>A LITTLE<br>EVERY DAY</small></div>
+        </section>
+        <footer class="home-footer"><span>AZENA</span><span>Учись в своём ритме. Расти каждый день.</span></footer>
       </section>
 
-      
-      <!-- CLASSES -->
+
+            <!-- CLASSES -->
       <section id="page-classes" class="page">
         <div class="page-header">
           <h1>Классы</h1>
@@ -339,76 +364,117 @@
       </section>
 
 
-      <!-- CREATE / EDIT LESSON -->
+      <!-- CREATE / EDIT LESSON — Edvibe-style block builder -->
       <section id="page-create-lesson" class="page">
-        <div class="page-header">
-          <h1 id="lesson-form-title">Создать урок</h1>
+        <div class="builder-topbar">
+          <div class="builder-topbar-left">
+            <button type="button" class="btn btn-outline btn-sm" data-goto="class-view">← Назад</button>
+            <h1 id="lesson-form-title">Новый урок</h1>
+          </div>
+          <div class="builder-topbar-right">
+            <button type="button" class="btn btn-outline btn-sm" id="lesson-preview-btn">Превью</button>
+            <button type="submit" form="lesson-form" class="btn btn-primary btn-sm" id="lesson-save-top">Сохранить</button>
+          </div>
         </div>
-        <form id="lesson-form" class="lesson-form">
+
+        <form id="lesson-form" class="lesson-builder">
           <input type="hidden" id="lesson-id" />
-          <div class="lesson-templates">
-            <span class="muted">Шаблоны:</span>
-            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="grammar">Грамматика</button>
-            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="vocab">Словарь</button>
-            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="speaking">Speaking</button>
-            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="reading">Reading</button>
-            <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="homework">Домашка</button>
-          </div>
-          <div class="form-group">
-            <label for="lesson-title">Название урока *</label>
-            <input type="text" id="lesson-title" placeholder="Present Perfect" required />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="lesson-level">Уровень</label>
-              <select id="lesson-level">
-                <option value="A1">A1</option>
-                <option value="A2">A2</option>
-                <option value="B1" selected>B1</option>
-                <option value="B2">B2</option>
-                <option value="C1">C1</option>
-              </select>
+
+          <div class="builder-meta card">
+            <div class="form-row">
+              <div class="form-group grow">
+                <label for="lesson-title">Название *</label>
+                <input type="text" id="lesson-title" placeholder="Например: Present Perfect — практика" required />
+              </div>
+              <div class="form-group">
+                <label for="lesson-level">Уровень</label>
+                <select id="lesson-level">
+                  <option value="A1">A1</option>
+                  <option value="A2">A2</option>
+                  <option value="B1" selected>B1</option>
+                  <option value="B2">B2</option>
+                  <option value="C1">C1</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="lesson-category">Категория</label>
+                <select id="lesson-category">
+                  <option value="grammar">Грамматика</option>
+                  <option value="vocabulary">Словарь</option>
+                  <option value="speaking">Speaking</option>
+                  <option value="listening">Listening</option>
+                  <option value="writing">Writing</option>
+                  <option value="reading">Reading</option>
+                  <option value="homework">Домашка</option>
+                </select>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="lesson-category">Категория</label>
-              <select id="lesson-category">
-                <option value="grammar">Грамматика</option>
-                <option value="vocabulary">Словарь</option>
-                <option value="speaking">Разговорная практика</option>
-                <option value="listening">Аудирование</option>
-                <option value="writing">Письмо</option>
-              </select>
+            <div class="form-row">
+              <div class="form-group grow">
+                <label for="lesson-description">Описание</label>
+                <input type="text" id="lesson-description" placeholder="Кратко: что ученик освоит" />
+              </div>
+              <div class="form-group">
+                <label for="lesson-deadline">Дедлайн</label>
+                <input id="lesson-deadline" type="datetime-local" />
+              </div>
+              <div class="form-group check-inline">
+                <label><input type="checkbox" id="lesson-is-homework" /> Домашнее задание</label>
+              </div>
             </div>
-          </div>
-          <div class="form-group">
-            <label for="lesson-description">Краткое описание</label>
-            <textarea id="lesson-description" rows="2"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="lesson-content">Содержание / теория</label>
-            <textarea id="lesson-content" rows="6"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Картинки к уроку</label>
-            <input type="file" id="lesson-images-input" accept="image/*" multiple />
-            <div id="lesson-images-preview" class="images-preview"></div>
-          </div>
-          <div class="form-group">
-            <label>Задания</label>
-            <div class="task-quick-add">
-              <button type="button" class="btn btn-outline btn-sm" data-quick-task="open">Открытый ответ</button>
-              <button type="button" class="btn btn-outline btn-sm" data-quick-task="choice">Тест</button>
-              <button type="button" class="btn btn-outline btn-sm" data-quick-task="truefalse">Верно/неверно</button>
-              <button type="button" class="btn btn-outline btn-sm" data-quick-task="fill">Пропуски</button>
-              <button type="button" class="btn btn-outline btn-sm" data-quick-task="order">Порядок слов</button>
-              <button type="button" class="btn btn-outline btn-sm" data-quick-task="match">Сопоставление</button>
+            <div class="lesson-templates">
+              <span class="muted">Быстрый старт:</span>
+              <button type="button" class="btn btn-outline btn-sm" id="restore-lesson-draft">Восстановить черновик</button>
+              <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="grammar">Грамматика</button>
+              <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="vocab">Словарь</button>
+              <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="speaking">Speaking</button>
+              <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="reading">Reading</button>
+              <button type="button" class="btn btn-outline btn-sm tpl-btn" data-tpl="homework">Домашка</button>
             </div>
-            <div id="tasks-builder"></div>
-            <button type="button" class="btn btn-outline btn-sm" id="add-task-btn" style="margin-top:0.5rem">+ Добавить задание</button>
-            <p class="muted" style="font-size:0.8rem;margin-top:0.35rem">Перетаскивайте задания за «⋮⋮» чтобы менять порядок.</p>
+            <!-- legacy fields kept hidden for compatibility -->
+            <textarea id="lesson-content" class="hidden" rows="1"></textarea>
+            <input type="file" id="lesson-images" accept="image/*" multiple class="hidden" />
+            <div id="lesson-images-preview" class="hidden"></div>
           </div>
-          <div class="form-group teacher-only"><label for="lesson-deadline">Дедлайн домашки (необязательно)</label><input id="lesson-deadline" type="datetime-local" /></div>
-          <div class="form-actions">
+
+          <div class="builder-workspace">
+            <div class="builder-canvas-col">
+              <div class="builder-canvas-head">
+                <h3>Содержание урока</h3>
+                <span class="muted" id="blocks-count">0 блоков</span><span class="builder-save-state" id="builder-save-state">Автосохранение включено</span>
+              </div>
+              <div id="lesson-canvas" class="lesson-canvas">
+                <div class="canvas-empty" id="canvas-empty">
+                  <p>Добавьте блоки справа — текст, видео, задания.</p>
+                  <p class="muted">Как в Edvibe: собираете урок из упражнений по порядку.</p>
+                </div>
+              </div>
+            </div>
+
+            <aside class="builder-palette">
+              <h3>Добавить блок</h3>
+              <p class="muted palette-hint">Нажмите — блок появится в уроке</p>
+              <div class="palette-grid">
+                <button type="button" class="palette-item" data-block="text"><span class="pal-ico">T</span><span>Текст / теория</span></button>
+                <button type="button" class="palette-item" data-block="note"><span class="pal-ico">i</span><span>Заметка</span></button>
+                <button type="button" class="palette-item" data-block="video"><span class="pal-ico">▶</span><span>Видео (YouTube)</span></button>
+                <button type="button" class="palette-item" data-block="wordlist"><span class="pal-ico">W</span><span>Список слов</span></button>
+                <button type="button" class="palette-item" data-block="open"><span class="pal-ico">?</span><span>Открытый ответ</span></button>
+                <button type="button" class="palette-item" data-block="choice"><span class="pal-ico">☰</span><span>Тест</span></button>
+                <button type="button" class="palette-item" data-block="truefalse"><span class="pal-ico">±</span><span>Верно / неверно</span></button>
+                <button type="button" class="palette-item" data-block="fill"><span class="pal-ico">_</span><span>Пропуски</span></button>
+                <button type="button" class="palette-item" data-block="order"><span class="pal-ico">↔</span><span>Порядок слов</span></button>
+                <button type="button" class="palette-item" data-block="match"><span class="pal-ico">⇄</span><span>Сопоставление</span></button>
+                <button type="button" class="palette-item" data-block="divider"><span class="pal-ico">—</span><span>Разделитель</span></button>
+                <button type="button" class="palette-item" data-block="heading"><span class="pal-ico">H</span><span>Заголовок</span></button>
+                <button type="button" class="palette-item" data-block="audio"><span class="pal-ico">♫</span><span>Аудио</span></button>
+                <button type="button" class="palette-item" data-block="image"><span class="pal-ico">▧</span><span>Изображение</span></button>
+                <button type="button" class="palette-item" data-block="flashcards"><span class="pal-ico">▤</span><span>Карточки слов</span></button>
+              </div>
+            </aside>
+          </div>
+
+          <div class="builder-footer">
             <button type="submit" class="btn btn-primary">Сохранить урок</button>
             <button type="button" class="btn btn-outline" data-goto="class-view">Отмена</button>
           </div>
@@ -448,6 +514,7 @@
               <label>Имя в звонке</label>
               <input type="text" id="live-display-name" placeholder="Как тебя видно" />
             </div>
+            <label class="relay-toggle"><input type="checkbox" id="force-relay-toggle" /> Надёжный режим (через TURN — если звонок «не цепляется»)</label>
             <div class="call-actions">
               <button type="button" id="host-live-btn" class="btn btn-primary btn-full"><svg class="icon-sm" aria-hidden="true"><use href="#i-video"></use></svg> Создать комнату (хост)</button>
               <button type="button" id="join-live-btn" class="btn btn-outline btn-full"><svg class="icon-sm" aria-hidden="true"><use href="#i-users"></use></svg> Присоединиться</button>
@@ -568,21 +635,23 @@
 
   <!-- Floating mini video (always visible when in call) -->
   <div id="pip-video" class="pip-video hidden">
-    <div class="pip-header">
-      <span id="pip-status">В эфире</span>
+    <div class="pip-header" id="pip-drag-handle">
+      <span><i class="pip-live-dot"></i><span id="pip-status">В эфире</span></span>
       <div class="pip-actions">
-        <button type="button" id="pip-expand" title="Крупнее"><svg class="icon-sm" aria-hidden="true"><use href="#i-expand"></use></svg></button>
-        <button type="button" id="pip-end" title="Выйти"><svg class="icon-sm" aria-hidden="true"><use href="#i-close"></use></svg></button>
+        <button type="button" id="pip-expand" title="Развернуть окно"><svg class="icon-sm" aria-hidden="true"><use href="#i-expand"></use></svg></button>
       </div>
     </div>
     <div class="pip-videos">
       <video id="pip-remote" autoplay playsinline></video>
       <video id="pip-local" autoplay playsinline muted></video>
+      <div class="pip-no-remote" id="pip-no-remote">Ожидание собеседника…</div>
     </div>
     <div class="pip-controls">
       <button type="button" id="pip-mic" title="Микрофон"><svg class="icon-sm" aria-hidden="true"><use href="#i-mic"></use></svg></button>
       <button type="button" id="pip-cam" title="Камера"><svg class="icon-sm" aria-hidden="true"><use href="#i-cam"></use></svg></button>
+      <button type="button" id="pip-end" class="pip-hangup" title="Сбросить звонок"><svg class="icon-sm" aria-hidden="true"><use href="#i-close"></use></svg><span>Сбросить</span></button>
     </div>
+    <div class="pip-resize-grip" id="pip-resize-grip" aria-label="Изменить размер окна"></div>
   </div>
 
   <script>
@@ -591,6 +660,6 @@
     window.VEKTOR_API = 'https://throbbing-grass-315c.claudebote8.workers.dev/chat/completions';
   </script>
   
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>

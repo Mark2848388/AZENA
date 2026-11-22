@@ -136,6 +136,7 @@ function enterApp() {
 
 // ==================== NAVIGATION ====================
 function showPage(pageId) {
+  if (pageId !== 'view-lesson') document.body.classList.remove('classroom-mode');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
@@ -357,6 +358,8 @@ function pinLesson(lessonId) {
   if (!cls) return;
   cls.pinnedLessonId = lessonId;
   saveClasses();
+  localStorage.removeItem('azena_lesson_draft');
+  const saveState=document.getElementById('builder-save-state');if(saveState)saveState.textContent='Урок сохранён';
   openClass(currentClassId);
 }
 
@@ -424,6 +427,14 @@ function renderClassLessons(cls) {
 
 async function submitHomework(lesson,score,total){const cls=classes.find(c=>c.id===currentClassId),st=cls?.students.find(s=>s.id===currentUser.id);if(!cls||!st)return;st.homeworkSubmitted||=[];st.homeworkSubmitted=st.homeworkSubmitted.filter(x=>x.lessonId!==lesson.id);const sub={lessonId:lesson.id,submittedAt:Date.now(),score,total,status:'submitted'};st.homeworkSubmitted.push(sub);saveClasses();if(supabaseClient){const {error}=await supabaseClient.from('homework_submissions').upsert({class_id:cls.id,lesson_id:lesson.id,student_id:currentUser.id,submission:sub,submitted_at:new Date().toISOString()},{onConflict:'lesson_id,student_id'});if(error)console.warn('Homework sync',error.message);}alert('Домашка отправлена учителю!');}
 // ==================== LESSONS ====================
+function youtubeId(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('youtu.be')) return u.pathname.slice(1);
+    return u.searchParams.get('v');
+  } catch { return null; }
+}
+
 function categoryLabel(cat) {
   const map = {
     grammar: 'Грамматика',
@@ -435,80 +446,255 @@ function categoryLabel(cat) {
   return map[cat] || cat;
 }
 
+
 function resetLessonForm() {
-  document.getElementById('lesson-form-title').textContent = 'Создать урок';
+  document.getElementById('lesson-form-title').textContent = 'Новый урок';
   document.getElementById('lesson-id').value = '';
-  document.getElementById('lesson-form').reset();
-  document.getElementById('lesson-level').value = 'B1';
-  document.getElementById('lesson-images-preview').innerHTML = '';
-  document.getElementById('tasks-builder').innerHTML = '';
+  document.getElementById('lesson-form')?.reset();
+  const lvl = document.getElementById('lesson-level');
+  if (lvl) lvl.value = 'B1';
+  const hw = document.getElementById('lesson-is-homework');
+  if (hw) hw.checked = false;
+  const canvas = document.getElementById('lesson-canvas');
+  if (canvas) {
+    canvas.innerHTML = '<div class="canvas-empty" id="canvas-empty"><p>Добавьте блоки справа — текст, видео, задания.</p><p class="muted">Как в Edvibe: собираете урок из упражнений по порядку.</p></div>';
+  }
   window._lessonImages = [];
+  updateBlocksCount();
 }
 
-function addTaskBlock(task = null) {
-  const id = task?.id || 't_' + Date.now() + Math.random().toString(36).slice(2, 5);
-  const type = task?.type || 'open';
-  const div = document.createElement('div');
-  div.className = 'task-block';
-  div.dataset.taskId = id;
-  div.innerHTML = `
-    <div class="task-block-header">
-      <select class="task-type">
-        <option value="open" ${type === 'open' ? 'selected' : ''}>Открытый ответ</option>
-        <option value="choice" ${type === 'choice' ? 'selected' : ''}>Выбор варианта</option>
-        <option value="truefalse" ${type === 'truefalse' ? 'selected' : ''}>Верно / Неверно</option>
-        <option value="fill" ${type === 'fill' ? 'selected' : ''}>Fill the gaps</option>
-        <option value="order" ${type === 'order' ? 'selected' : ''}>Order the words</option>
-        <option value="match" ${type === 'match' ? 'selected' : ''}>Match (пары)</option>
-      </select>
-      <button type="button" class="btn btn-danger btn-sm remove-task">×</button>
+function uid(prefix) {
+  return (prefix || 'b') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+const BLOCK_LABELS = {
+  text: 'Текст / теория',
+  note: 'Заметка',
+  video: 'Видео',
+  wordlist: 'Список слов',
+  open: 'Открытый ответ',
+  choice: 'Тест',
+  truefalse: 'Верно / неверно',
+  fill: 'Пропуски',
+  order: 'Порядок слов',
+  match: 'Сопоставление',
+  divider: 'Разделитель', heading: 'Заголовок', audio: 'Аудио', image: 'Изображение', flashcards: 'Карточки слов'
+};
+
+function updateBlocksCount() {
+  const n = document.querySelectorAll('#lesson-canvas .lb-block').length;
+  const el = document.getElementById('blocks-count');
+  if (el) el.textContent = n + ' блок' + (n === 1 ? '' : n < 5 ? 'а' : 'ов');
+  const empty = document.getElementById('canvas-empty');
+  if (empty) empty.style.display = n ? 'none' : '';
+}
+
+function addLessonBlock(type, data = null) {
+  const canvas = document.getElementById('lesson-canvas');
+  if (!canvas) return;
+  document.getElementById('canvas-empty')?.remove();
+
+  const id = data?.id || uid('b');
+  const block = document.createElement('article');
+  block.className = 'lb-block';
+  block.dataset.blockId = id;
+  block.dataset.blockType = type;
+  block.draggable = true;
+
+  let body = '';
+  if (type === 'text') {
+    body = `<textarea class="lb-text" rows="4" placeholder="Теория, правило, объяснение…">${escapeHtml(data?.text || data?.content || '')}</textarea>`;
+  } else if (type === 'note') {
+    body = `<textarea class="lb-text" rows="2" placeholder="Заметка для ученика или себе…">${escapeHtml(data?.text || '')}</textarea>`;
+  } else if (type === 'video') {
+    body = `<input class="lb-url" type="url" placeholder="https://www.youtube.com/watch?v=…" value="${escapeHtml(data?.url || '')}" />
+            <p class="muted lb-hint">Вставьте ссылку YouTube — в уроке появится плеер</p>`;
+  } else if (type === 'wordlist') {
+    body = `<textarea class="lb-text" rows="3" placeholder="word — перевод (каждый с новой строки)">${escapeHtml(data?.text || data?.words || '')}</textarea>`;
+  } else if (type === 'divider' || type === 'heading') {
+    body = `<input class="lb-title" type="text" placeholder="${type==='heading'?'Заголовок раздела':'Название секции (необязательно)'}" value="${escapeHtml(data?.title || '')}" />`;
+  } else if (type === 'audio' || type === 'image') {
+    body = `<input class="lb-url" type="url" placeholder="${type==='audio'?'Ссылка на аудиофайл (mp3, ogg, wav)':'Ссылка на изображение'}" value="${escapeHtml(data?.url || '')}" />`;
+    body += `<input class="lb-caption" type="text" placeholder="Подпись (необязательно)" value="${escapeHtml(data?.caption || '')}" />`;
+  } else if (type === 'flashcards') {
+    body = `<textarea class="lb-text" rows="4" placeholder="hello = привет&#10;world = мир">${escapeHtml(data?.text || '')}</textarea><p class="muted lb-hint">Одна карточка на строку: слово = перевод</p>`;
+  } else {
+    // exercise types
+    body = `<input class="lb-question" type="text" placeholder="Вопрос / формулировка задания" value="${escapeHtml(data?.question || '')}" />`;
+    if (type === 'choice') {
+      const opts = data?.options || ['', '', '', ''];
+      body += `<div class="lb-options">
+        ${[0,1,2,3].map(i => `<input class="lb-opt" type="text" placeholder="Вариант ${i+1}" value="${escapeHtml(opts[i] || '')}" />`).join('')}
+        <input class="lb-correct" type="text" placeholder="Правильный ответ (точный текст варианта)" value="${escapeHtml(data?.correct || '')}" />
+      </div>`;
+    } else if (type === 'truefalse') {
+      const c = data?.correct === 'false' ? 'false' : 'true';
+      body += `<div class="lb-tf">
+        <label><input type="radio" name="tf_${id}" value="true" ${c==='true'?'checked':''}/> Верно</label>
+        <label><input type="radio" name="tf_${id}" value="false" ${c==='false'?'checked':''}/> Неверно</label>
+      </div>`;
+    } else if (type === 'fill' || type === 'order') {
+      body += `<input class="lb-correct" type="text" placeholder="${type==='order' ? 'Правильная фраза по словам' : 'Правильный ответ в пропуск'}" value="${escapeHtml(data?.correct || '')}" />`;
+    } else if (type === 'match') {
+      body += `<textarea class="lb-pairs" rows="3" placeholder="cat=кот, dog=собака">${escapeHtml(data?.pairs || '')}</textarea>`;
+    } else if (type === 'open') {
+      body += `<p class="muted lb-hint">Ученик напишет свободный ответ</p>`;
+    }
+  }
+
+  block.innerHTML = `
+    <div class="lb-head">
+      <span class="lb-drag" title="Перетащить">⋮⋮</span>
+      <span class="lb-type">${BLOCK_LABELS[type] || type}</span>
+      <div class="lb-actions">
+        <button type="button" class="btn btn-outline btn-sm lb-up" title="Выше">↑</button>
+        <button type="button" class="btn btn-outline btn-sm lb-down" title="Ниже">↓</button>
+        <button type="button" class="btn btn-danger btn-sm lb-remove" title="Удалить">×</button>
+      </div>
     </div>
-    <input type="text" class="task-question" placeholder="Вопрос / задание" value="${escapeHtml(task?.question || '')}" />
-    <div class="task-options ${type === 'choice' ? '' : 'hidden'}">
-      <input type="text" class="opt" placeholder="Вариант 1" value="${escapeHtml(task?.options?.[0] || '')}" />
-      <input type="text" class="opt" placeholder="Вариант 2" value="${escapeHtml(task?.options?.[1] || '')}" />
-      <input type="text" class="opt" placeholder="Вариант 3" value="${escapeHtml(task?.options?.[2] || '')}" />
-      <input type="text" class="opt" placeholder="Вариант 4" value="${escapeHtml(task?.options?.[3] || '')}" />
-      <input type="text" class="task-correct" placeholder="Правильный ответ (текст варианта)" value="${escapeHtml(task?.correct || '')}" />
-    </div>
-    <div class="task-extra-answer ${['fill','order'].includes(type) ? '' : 'hidden'}"><input class="extra-correct" placeholder="Правильный ответ / фраза" value="${escapeHtml(task?.correct || '')}" /></div>
-    <div class="task-match ${type === 'match' ? '' : 'hidden'}"><textarea class="match-pairs" rows="3" placeholder="Пары в формате cat=кот, dog=собака">${escapeHtml(task?.pairs || '')}</textarea></div>
-    <div class="task-tf ${type === 'truefalse' ? '' : 'hidden'}">
-      <label><input type="radio" name="tf_${id}" value="true" ${task?.correct === 'true' ? 'checked' : ''}> Верно</label>
-      <label><input type="radio" name="tf_${id}" value="false" ${task?.correct === 'false' ? 'checked' : ''}> Неверно</label>
-    </div>
-  `;
-  div.querySelector('.task-type').addEventListener('change', (e) => {
-    const t = e.target.value;
-    div.querySelector('.task-options').classList.toggle('hidden', t !== 'choice');
-    div.querySelector('.task-tf').classList.toggle('hidden', t !== 'truefalse');
-    div.querySelector('.task-extra-answer').classList.toggle('hidden', !['fill','order'].includes(t));
-    div.querySelector('.task-match').classList.toggle('hidden', t !== 'match');
+    <div class="lb-body">${body}</div>`;
+
+  block.querySelector('.lb-remove').onclick = () => { block.remove(); updateBlocksCount(); scheduleBuilderDraft(); };
+  const duplicate = document.createElement('button'); duplicate.type='button'; duplicate.className='btn btn-outline btn-sm lb-duplicate'; duplicate.title='Дублировать'; duplicate.textContent='⧉';
+  block.querySelector('.lb-actions').insertBefore(duplicate, block.querySelector('.lb-remove'));
+  duplicate.onclick = () => { const copy = collectSingleBlock(block); addLessonBlock(type, {...copy, id:uid('b')}); scheduleBuilderDraft(); };
+  block.querySelector('.lb-up').onclick = () => {
+    const prev = block.previousElementSibling;
+    if (prev && prev.classList.contains('lb-block')) canvas.insertBefore(block, prev);
+  };
+  block.querySelector('.lb-down').onclick = () => {
+    const next = block.nextElementSibling;
+    if (next) canvas.insertBefore(next, block);
+  };
+
+  // drag reorder
+  block.addEventListener('dragstart', (e) => {
+    block.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', id);
   });
-  div.querySelector('.remove-task').addEventListener('click', () => div.remove());
-  document.getElementById('tasks-builder').appendChild(div);
+  block.addEventListener('dragend', () => block.classList.remove('dragging'));
+  block.addEventListener('dragover', (e) => e.preventDefault());
+  block.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const dragging = canvas.querySelector('.lb-block.dragging');
+    if (!dragging || dragging === block) return;
+    const rect = block.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    canvas.insertBefore(dragging, before ? block : block.nextSibling);
+  });
+
+  canvas.appendChild(block);
+  updateBlocksCount();
+  scheduleBuilderDraft();
+  block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  return block;
+}
+
+function collectSingleBlock(el) {
+  const type=el.dataset.blockType, id=el.dataset.blockId;
+  const tmp=document.createElement('div'); tmp.appendChild(el.cloneNode(true));
+  const node=tmp.firstElementChild;
+  const value=sel=>node.querySelector(sel)?.value?.trim()||'';
+  const b={id,type};
+  if(['text','note','wordlist','flashcards'].includes(type)) b.text=value('.lb-text');
+  else if(['video','audio','image'].includes(type)){b.url=value('.lb-url');b.caption=value('.lb-caption');}
+  else if(['divider','heading'].includes(type)) b.title=value('.lb-title');
+  else {b.question=value('.lb-question');b.correct=value('.lb-correct');b.options=[...node.querySelectorAll('.lb-opt')].map(x=>x.value);b.pairs=value('.lb-pairs');}
+  return b;
+}
+
+function scheduleBuilderDraft(){
+  const state=document.getElementById('builder-save-state'); if(state) state.textContent='Есть несохранённые изменения';
+  clearTimeout(window._azenaDraftTimer);
+  window._azenaDraftTimer=setTimeout(()=>{
+    const draft={title:document.getElementById('lesson-title')?.value||'',level:document.getElementById('lesson-level')?.value||'B1',category:document.getElementById('lesson-category')?.value||'grammar',description:document.getElementById('lesson-description')?.value||'',blocks:collectBlocks()};
+    try{localStorage.setItem('azena_lesson_draft',JSON.stringify(draft));if(state)state.textContent='Черновик сохранён';}catch(e){if(state)state.textContent='Не удалось сохранить черновик';}
+  },650);
+}
+
+function restoreBuilderDraft(){
+  try{const d=JSON.parse(localStorage.getItem('azena_lesson_draft')||'null');if(!d||document.getElementById('lesson-id')?.value)return;
+    if(d.title)document.getElementById('lesson-title').value=d.title;
+    if(d.description)document.getElementById('lesson-description').value=d.description;
+    if(d.level)document.getElementById('lesson-level').value=d.level;
+    if(d.category)document.getElementById('lesson-category').value=d.category;
+    (d.blocks||[]).forEach(b=>addLessonBlock(b.type,b));
+  }catch(e){console.warn('Draft restore',e);}
+}
+
+function collectBlocks() {
+  const blocks = [];
+  document.querySelectorAll('#lesson-canvas .lb-block').forEach(el => {
+    const type = el.dataset.blockType;
+    const id = el.dataset.blockId;
+    const b = { id, type };
+    if (type === 'text' || type === 'note' || type === 'wordlist') {
+      b.text = el.querySelector('.lb-text')?.value.trim() || '';
+    } else if (type === 'video') {
+      b.url = el.querySelector('.lb-url')?.value.trim() || '';
+    } else if (type === 'divider' || type === 'heading') {
+      b.title = el.querySelector('.lb-title')?.value.trim() || '';
+    } else if (type === 'audio' || type === 'image') {
+      b.url = el.querySelector('.lb-url')?.value.trim() || '';
+      b.caption = el.querySelector('.lb-caption')?.value.trim() || '';
+    } else if (type === 'flashcards') {
+      b.text = el.querySelector('.lb-text')?.value.trim() || '';
+    } else {
+      b.question = el.querySelector('.lb-question')?.value.trim() || '';
+      if (type === 'choice') {
+        b.options = [...el.querySelectorAll('.lb-opt')].map(i => i.value.trim()).filter(Boolean);
+        b.correct = el.querySelector('.lb-correct')?.value.trim() || '';
+      } else if (type === 'truefalse') {
+        b.correct = el.querySelector('input[type=radio]:checked')?.value || 'true';
+      } else if (type === 'fill' || type === 'order') {
+        b.correct = el.querySelector('.lb-correct')?.value.trim() || '';
+      } else if (type === 'match') {
+        b.pairs = el.querySelector('.lb-pairs')?.value.trim() || '';
+      }
+    }
+    blocks.push(b);
+  });
+  return blocks;
+}
+
+function blocksToTasks(blocks) {
+  return (blocks || [])
+    .filter(b => ['open','choice','truefalse','fill','order','match'].includes(b.type))
+    .map(b => ({
+      id: b.id,
+      type: b.type,
+      question: b.question || '',
+      options: b.options || [],
+      correct: b.correct || '',
+      pairs: b.pairs || ''
+    }));
+}
+
+function lessonBlocksFromLegacy(lesson) {
+  if (lesson.blocks?.length) return lesson.blocks;
+  const blocks = [];
+  if (lesson.content) blocks.push({ id: uid('t'), type: 'text', text: lesson.content });
+  (lesson.tasks || []).forEach(t => {
+    blocks.push({
+      id: t.id || uid('x'),
+      type: t.type || 'open',
+      question: t.question,
+      options: t.options,
+      correct: t.correct,
+      pairs: t.pairs
+    });
+  });
+  return blocks;
+}
+
+// keep old name for templates / quick-add compatibility
+function addTaskBlock(task = null) {
+  const type = task?.type || 'open';
+  addLessonBlock(type, task);
 }
 
 function collectTasks() {
-  const tasks = [];
-  document.querySelectorAll('.task-block').forEach(block => {
-    const type = block.querySelector('.task-type').value;
-    const question = block.querySelector('.task-question').value.trim();
-    if (!question) return;
-    const task = { id: block.dataset.taskId, type, question };
-    if (type === 'choice') {
-      task.options = Array.from(block.querySelectorAll('.opt')).map(i => i.value.trim()).filter(Boolean);
-      task.correct = block.querySelector('.task-correct').value.trim();
-    }
-    if (['fill','order'].includes(type)) task.correct=block.querySelector('.extra-correct').value.trim();
-    if(type==='match') task.pairs=block.querySelector('.match-pairs').value.trim();
-    if (type === 'truefalse') {
-      const checked = block.querySelector('input[type=radio]:checked');
-      task.correct = checked ? checked.value : 'true';
-    }
-    tasks.push(task);
-  });
-  return tasks;
+  return blocksToTasks(collectBlocks());
 }
 
 function handleImageUpload(e) {
@@ -561,15 +747,21 @@ function handleLessonSubmit(e) {
   const level = document.getElementById('lesson-level').value;
   const category = document.getElementById('lesson-category').value;
   const description = document.getElementById('lesson-description').value.trim();
-  const content = document.getElementById('lesson-content').value.trim();
+  const blocks = collectBlocks();
+  const tasks = blocksToTasks(blocks);
+  const content = blocks.filter(b => b.type === 'text').map(b => b.text).join('\n\n');
   const images = window._lessonImages || [];
-  const tasks = collectTasks();
+  const isHomework = !!document.getElementById('lesson-is-homework')?.checked
+    || category === 'homework';
 
   if (!title) return alert('Укажи название урока');
+  if (!blocks.length) return alert('Добавьте хотя бы один блок в урок');
 
   const lessonData = {
     title, level, category, description, content,
-    images, tasks, deadline: document.getElementById('lesson-deadline')?.value || null,
+    images, tasks, blocks,
+    isHomework,
+    deadline: document.getElementById('lesson-deadline')?.value || null,
     updatedAt: Date.now()
   };
 
@@ -598,13 +790,12 @@ function viewLesson(classId, lessonId, classic = false) {
   currentLessonId = lessonId;
 
   const isTeacher = currentUser.role === 'teacher' && cls.teacherId === currentUser.id;
-  // Edvibe-like step mode by default when there are tasks
-  if (!classic && (lesson.tasks || []).length) {
-    lessonStepIndex = 0;
+  // Default: Edvibe-style full lesson (center exercises + sections)
+  if (!classic) {
     const view = document.getElementById('lesson-view');
     if (view) {
       showPage('view-lesson');
-      renderLessonStepMode(lesson, isTeacher);
+      renderEdvibeLesson(lesson, isTeacher);
       const editBtn = document.getElementById('edit-lesson-btn');
       const delBtn = document.getElementById('delete-lesson-btn');
       if (editBtn) editBtn.style.display = isTeacher ? '' : 'none';
@@ -619,6 +810,31 @@ function viewLesson(classId, lessonId, classic = false) {
     imagesHtml = '<div class="lesson-images">' +
       lesson.images.map(src => '<img src="' + src + '" alt="Картинка к уроку">').join('') +
       '</div>';
+  }
+
+
+  // Edvibe-like sequential blocks
+  let blocksHtml = '';
+  const blocks = lessonBlocksFromLegacy(lesson);
+  if (blocks.length) {
+    blocksHtml = '<div class="lesson-blocks">' + blocks.map((b, idx) => {
+      if (b.type === 'text') return `<section class="lb-view text"><div class="content">${escapeHtml(b.text || '').replace(/\\n/g,'<br>')}</div></section>`;
+      if (b.type === 'note') return `<section class="lb-view note"><strong>Заметка</strong><p>${escapeHtml(b.text || '')}</p></section>`;
+      if (b.type === 'video') {
+        const id = youtubeId(b.url || '');
+        return id
+          ? `<section class="lb-view video"><div class="yt-wrap"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen loading="lazy"></iframe></div></section>`
+          : `<section class="lb-view video"><a href="${escapeHtml(b.url||'')}" target="_blank" rel="noopener">Открыть видео</a></section>`;
+      }
+      if (b.type === 'wordlist') {
+        const lines = (b.text || '').split('\\n').filter(Boolean);
+        return `<section class="lb-view wordlist"><h4>Слова</h4><ul>${lines.map(l=>'<li>'+escapeHtml(l)+'</li>').join('')}</ul>
+          <button type="button" class="btn btn-outline btn-sm add-wordlist-btn" data-words="${escapeHtml(b.text||'')}">В мой словарь</button></section>`;
+      }
+      if (b.type === 'divider') return `<section class="lb-view divider"><h3>${escapeHtml(b.title || '—')}</h3></section>`;
+      // task-like blocks rendered in tasks section below for checking
+      return '';
+    }).join('') + '</div>';
   }
 
   let tasksHtml = '';
@@ -658,7 +874,7 @@ function viewLesson(classId, lessonId, classic = false) {
     <h1>${escapeHtml(lesson.title)}</h1>
     <p class="desc">${escapeHtml(lesson.description || '')}</p>
     ${imagesHtml}
-    <div class="content">${escapeHtml(lesson.content || '')}</div>
+    ${blocksHtml || `<div class="content">${escapeHtml(lesson.content || '')}</div>`}
     <div class="lesson-vektor-tools"><button class="btn btn-outline btn-sm" id="lesson-explain-vektor">Объясни это</button><button class="btn btn-outline btn-sm" id="lesson-check-vektor">Проверь мой ответ</button><button class="btn btn-outline btn-sm" id="lesson-prepare-call">Подготовь к звонку</button></div>
     <div class="lesson-word-tools"><input id="lesson-word-input" placeholder="Word" /><input id="lesson-word-translation" placeholder="Перевод" /><button id="lesson-add-word" class="btn btn-outline btn-sm">+ В словарь</button></div>
     ${tasksHtml}
@@ -668,6 +884,18 @@ function viewLesson(classId, lessonId, classic = false) {
   document.getElementById('lesson-check-vektor')?.addEventListener('click',()=>askVektorWithContext('check'));
   document.getElementById('lesson-prepare-call')?.addEventListener('click',vektorPrepareCall);
   document.getElementById('lesson-add-word')?.addEventListener('click',()=>addLessonWord(document.getElementById('lesson-word-input').value.trim(),document.getElementById('lesson-word-translation').value.trim()));
+  view.querySelectorAll('.add-wordlist-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      (btn.dataset.words || '').split('\n').forEach(line => {
+        const [w, ...rest] = line.split('—');
+        const word = (w||'').trim();
+        const tr = rest.join('—').trim() || line.split('-').slice(1).join('-').trim();
+        if (word) addLessonWord(word, tr);
+      });
+      alert('Слова добавлены в словарь');
+    });
+  });
+
   const checkBtn = document.getElementById('check-tasks-btn');
   if (checkBtn) {
     checkBtn.addEventListener('click', () => checkLessonTasks(lesson));
@@ -725,10 +953,17 @@ function editCurrentLesson() {
   document.getElementById('lesson-deadline').value = lesson.deadline || '';
   window._lessonImages = [...(lesson.images || [])];
   renderImagesPreview();
-  document.getElementById('tasks-builder').innerHTML = '';
-  (lesson.tasks || []).forEach(t => addTaskBlock(t));
+  const canvas = document.getElementById('lesson-canvas');
+  if (canvas) {
+    canvas.innerHTML = '';
+    lessonBlocksFromLegacy(lesson).forEach(b => addLessonBlock(b.type, b));
+    updateBlocksCount();
+  }
+  const hw = document.getElementById('lesson-is-homework');
+  if (hw) hw.checked = !!lesson.isHomework || lesson.category === 'homework';
   showPage('create-lesson');
 }
+
 
 function deleteCurrentLesson() {
   if (!confirm('Удалить этот урок?')) return;
@@ -760,15 +995,46 @@ function escapeHtml(str) {
 }
 
 // ==================== VIDEO ====================
+// More STUN/TURN → higher chance of P2P through strict NATs / mobile networks
 const ICE_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    // Open Relay (free public TURN)
     { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-  ]
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    // Metered free ice (no account required for public demo endpoints)
+    { urls: 'turn:relay.metered.ca:80', username: 'e8dd65cf38c15e20f4775eba', credential: 'u9kP2vYkL9nR8mXq' },
+    { urls: 'turn:relay.metered.ca:443', username: 'e8dd65cf38c15e20f4775eba', credential: 'u9kP2vYkL9nR8mXq' },
+    { urls: 'turn:relay.metered.ca:443?transport=tcp', username: 'e8dd65cf38c15e20f4775eba', credential: 'u9kP2vYkL9nR8mXq' }
+  ],
+  iceCandidatePoolSize: 10
 };
+
+// Optional: force relay if user enables "Надёжный режим"
+let forceRelay = localStorage.getItem('azena_force_relay') === '1';
+
+function getPeerOptions(id) {
+  const config = {
+    ...ICE_CONFIG,
+    iceTransportPolicy: forceRelay ? 'relay' : 'all'
+  };
+  return {
+    debug: 1,
+    config,
+    // public PeerJS cloud; longer timeouts help on mobile
+    host: '0.peerjs.com',
+    port: 443,
+    path: '/',
+    secure: true,
+    pingInterval: 5000,
+    ...(id ? {} : {})
+  };
+}
 
 function peerIdFromCode(code) {
   // PeerJS IDs should be safe alphanumeric
@@ -785,8 +1051,12 @@ function createPeerInstance(id) {
   if (peer && !peer.destroyed) {
     try { peer.destroy(); } catch (_) {}
   }
-  const opts = { debug: 2, config: ICE_CONFIG };
+  const opts = getPeerOptions(id);
   peer = id ? new Peer(id, opts) : new Peer(opts);
+  // Keepalive / auto-reconnect
+  peer.on('open', () => {
+    setStatus(isHost ? 'Комната готова. Ждём участника…' : 'Сигнальный сервер: OK');
+  });
 
   peer.on('error', (err) => {
     console.error('Peer error', err);
@@ -821,7 +1091,16 @@ function createPeerInstance(id) {
     }
   });
 
-  peer.on('disconnected', () => { setStatus('Сигнал-сервер отключился, переподключаемся…'); try { peer.reconnect(); } catch(e) { console.warn(e); } });
+  peer.on('disconnected', () => {
+    setStatus('Сигнал-сервер отключился, переподключаемся…');
+    let tries = 0;
+    const retry = () => {
+      tries++;
+      try { peer.reconnect(); } catch(e) { console.warn(e); }
+      if (tries < 5 && peer && !peer.destroyed && peer.disconnected) setTimeout(retry, 2000 * tries);
+    };
+    setTimeout(retry, 1000);
+  });
   peer.on('connection', (conn) => {
     dataConnection = conn;
     setupDataConn(conn);
@@ -846,7 +1125,7 @@ async function getLocalStream() {
   const v = document.getElementById('local-video');
   if (v) v.srcObject = localStream;
   const pipL = document.getElementById('pip-local');
-  if (pipL) pipL.srcObject = localStream;
+  if (pipL) { pipL.srcObject = localStream; pipL.muted = true; pipL.play?.().catch(() => {}); }
   return localStream;
 }
 
@@ -857,7 +1136,8 @@ function setupCallHandlers(call) {
     document.getElementById('remote-placeholder')?.classList.add('hidden');
     setStatus('Звонок активен ✓');
     const pipR = document.getElementById('pip-remote');
-    if (pipR) pipR.srcObject = remoteStream;
+    if (pipR) { pipR.srcObject = remoteStream; pipR.muted = false; pipR.play?.().catch(() => {}); }
+    document.getElementById('pip-no-remote')?.classList.add('hidden');
     showPip();
   });
   call.on('close', () => endCallCleanup(false));
@@ -882,8 +1162,8 @@ function showPip() {
   const remote = document.getElementById('remote-video');
   const pipL = document.getElementById('pip-local');
   const pipR = document.getElementById('pip-remote');
-  if (local?.srcObject && pipL) pipL.srcObject = local.srcObject;
-  if (remote?.srcObject && pipR) pipR.srcObject = remote.srcObject;
+  if (local?.srcObject && pipL) { pipL.srcObject = local.srcObject; pipL.muted = true; pipL.play?.().catch(() => {}); }
+  if (remote?.srcObject && pipR) { pipR.srcObject = remote.srcObject; pipR.muted = false; pipR.play?.().catch(() => {}); }
   const st = document.getElementById('pip-status');
   if (st) st.textContent = 'Звонок активен';
 }
@@ -894,6 +1174,7 @@ function hidePip() {
   const pipR = document.getElementById('pip-remote');
   if (pipL) pipL.srcObject = null;
   if (pipR) pipR.srcObject = null;
+  document.getElementById('pip-no-remote')?.classList.remove('hidden');
 }
 
 function expandFromPip() {
@@ -1522,50 +1803,41 @@ function togglePipSize() {
   document.getElementById('pip-video')?.classList.toggle('expanded');
 }
 
-(function enablePipDrag() {
-  let dragging = false, ox = 0, oy = 0;
-  document.addEventListener('mousedown', (e) => {
-    const el = document.getElementById('pip-video');
+(function enablePipDragAndResize() {
+  let drag = null, resize = null;
+  const getPip = () => document.getElementById('pip-video');
+  document.addEventListener('pointerdown', (e) => {
+    const el = getPip();
     if (!el || el.classList.contains('hidden')) return;
-    if (!e.target.closest('.pip-header')) return;
-    dragging = true;
+    if (e.target.closest('#pip-resize-grip')) {
+      const r = el.getBoundingClientRect();
+      resize = { x: e.clientX, y: e.clientY, w: r.width, h: r.height };
+      e.preventDefault(); e.stopPropagation(); return;
+    }
+    if (!e.target.closest('#pip-drag-handle') || e.target.closest('button')) return;
     const r = el.getBoundingClientRect();
-    ox = e.clientX - r.left;
-    oy = e.clientY - r.top;
+    drag = { x: e.clientX - r.left, y: e.clientY - r.top };
+    el.setPointerCapture?.(e.pointerId);
     e.preventDefault();
   });
-  document.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    const el = document.getElementById('pip-video');
-    if (!el) return;
-    el.style.left = Math.max(0, e.clientX - ox) + 'px';
-    el.style.top = Math.max(0, e.clientY - oy) + 'px';
-    el.style.right = 'auto';
+  document.addEventListener('pointermove', (e) => {
+    const el = getPip(); if (!el) return;
+    if (resize) {
+      const w = Math.max(190, Math.min(window.innerWidth * .94, resize.w + e.clientX - resize.x));
+      const h = Math.max(170, Math.min(window.innerHeight * .72, resize.h + e.clientY - resize.y));
+      el.style.width = w + 'px'; el.style.height = h + 'px';
+      return;
+    }
+    if (drag) {
+      const r = el.getBoundingClientRect();
+      const left = Math.max(0, Math.min(window.innerWidth - r.width, e.clientX - drag.x));
+      const top = Math.max(0, Math.min(window.innerHeight - r.height, e.clientY - drag.y));
+      el.style.left = left + 'px'; el.style.top = top + 'px'; el.style.right = 'auto'; el.style.bottom = 'auto';
+    }
   });
-  document.addEventListener('mouseup', () => { dragging = false; });
-  // touch
-  document.addEventListener('touchstart', (e) => {
-    const el = document.getElementById('pip-video');
-    if (!el || el.classList.contains('hidden')) return;
-    if (!e.target.closest('.pip-header')) return;
-    const t = e.touches[0];
-    dragging = true;
-    const r = el.getBoundingClientRect();
-    ox = t.clientX - r.left;
-    oy = t.clientY - r.top;
-  }, { passive: true });
-  document.addEventListener('touchmove', (e) => {
-    if (!dragging) return;
-    const el = document.getElementById('pip-video');
-    if (!el) return;
-    const t = e.touches[0];
-    el.style.left = Math.max(0, t.clientX - ox) + 'px';
-    el.style.top = Math.max(0, t.clientY - oy) + 'px';
-    el.style.right = 'auto';
-  }, { passive: true });
-  document.addEventListener('touchend', () => { dragging = false; });
+  document.addEventListener('pointerup', () => { drag = null; resize = null; });
+  document.addEventListener('pointercancel', () => { drag = null; resize = null; });
 })();
-
 
 // ==================== INIT ====================
 
@@ -1648,17 +1920,471 @@ function applyLessonTemplate(key) {
     const hw = document.getElementById('lesson-is-homework');
     if (hw) hw.checked = true;
   }
-  const builder = document.getElementById('tasks-builder');
-  if (builder) {
-    builder.innerHTML = '';
-    (t.tasks || []).forEach(task => addTaskBlock({ ...task, id: 't_' + Date.now() + Math.random().toString(36).slice(2,5) }));
+  const canvas = document.getElementById('lesson-canvas');
+  if (canvas) {
+    canvas.innerHTML = '';
+    if (t.content) addLessonBlock('text', { text: t.content });
+    (t.tasks || []).forEach(task => addLessonBlock(task.type || 'open', task));
+    updateBlocksCount();
   }
 }
 
+
 let lessonStepIndex = 0;
 
+
+function parseFillSentence(question, correct) {
+  // Supports: "Someone ___ the door" or "Someone [is opening] the door"
+  let q = question || '';
+  let answer = (correct || '').trim();
+  const bracket = q.match(/\[([^\]]+)\]/);
+  if (bracket) {
+    answer = answer || bracket[1];
+    q = q.replace(/\[[^\]]+\]/, '___');
+  }
+  // Hint after em dash: ".... — OPEN"
+  const dash = q.split(/\s*[—–-]\s*/);
+  let hint = '';
+  if (dash.length > 1 && dash[dash.length - 1].length < 24) {
+    hint = dash.pop().trim();
+    q = dash.join(' — ').trim();
+  }
+  const parts = q.split('___');
+  return { parts, answer, hint };
+}
+
+function renderInlineFill(t, index) {
+  const { parts, answer, hint } = parseFillSentence(t.question, t.correct);
+  let html = `<div class="ev-item" data-tid="${t.id}" data-type="fill" data-correct="${escapeHtml(answer)}">`;
+  html += `<span class="ev-num">${index}.</span> <span class="ev-line">`;
+  parts.forEach((part, i) => {
+    html += `<span class="ev-text">${escapeHtml(part)}</span>`;
+    if (i < parts.length - 1) {
+      html += `<input class="ev-blank task-open" autocomplete="off" spellcheck="false" data-answer="${escapeHtml(answer)}" />`;
+    }
+  });
+  html += `</span>`;
+  if (hint) html += ` <span class="ev-hint">— ${escapeHtml(hint)}</span>`;
+  html += `</div>`;
+  return html;
+}
+
+
+function renderEdvibeLesson(lesson, isTeacher) {
+  const view = document.getElementById('lesson-view');
+  if (!view) return;
+  document.body.classList.add('classroom-mode');
+
+  const blocks = lessonBlocksFromLegacy(lesson);
+  const sections = [];
+  let currentSection = { title: 'Урок', items: [] };
+  sections.push(currentSection);
+
+  blocks.forEach(b => {
+    if (b.type === 'divider') {
+      currentSection = { title: b.title || 'Раздел', items: [] };
+      sections.push(currentSection);
+    } else {
+      currentSection.items.push(b);
+    }
+  });
+  if (sections.length === 1 && !sections[0].items.length && (lesson.tasks || []).length) {
+    sections[0].items = (lesson.tasks || []).map(t => ({ ...t, type: t.type || 'open' }));
+  }
+
+  let exerciseIndex = 0;
+  const mainHtml = sections.map((sec, sIdx) => {
+    const body = sec.items.map(b => {
+      if (b.type === 'text') return `<div class="ev-theory">${escapeHtml(b.text||'').replace(/\n/g,'<br>')}</div>`;
+      if (b.type === 'note') return `<div class="ev-note">${escapeHtml(b.text||'')}</div>`;
+      if (b.type === 'heading') return `<h3 class="ev-custom-heading">${escapeHtml(b.title||'Раздел')}</h3>`;
+      if (b.type === 'audio') return b.url ? `<div class="ev-media-block"><audio controls preload="none" src="${escapeHtml(b.url)}"></audio>${b.caption?`<small>${escapeHtml(b.caption)}</small>`:''}</div>` : '';
+      if (b.type === 'image') return b.url ? `<figure class="ev-media-block"><img src="${escapeHtml(b.url)}" alt="${escapeHtml(b.caption||'Иллюстрация к уроку')}" loading="lazy">${b.caption?`<figcaption>${escapeHtml(b.caption)}</figcaption>`:''}</figure>` : '';
+      if (b.type === 'flashcards') { const cards=(b.text||'').split('\n').map(x=>x.split('=').map(y=>y.trim())).filter(x=>x[0]&&x[1]); return `<div class="ev-flashcards">${cards.map((c,i)=>`<button type="button" class="ev-flashcard" data-front="${escapeHtml(c[0])}" data-back="${escapeHtml(c[1])}"><b>${escapeHtml(c[0])}</b><span>Нажми, чтобы увидеть перевод</span></button>`).join('')}</div>`; }
+      if (b.type === 'video') {
+        const id = youtubeId(b.url||'');
+        return id ? `<div class="yt-wrap"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen loading="lazy"></iframe></div>` : '';
+      }
+      if (b.type === 'wordlist') {
+        const lines = (b.text||'').split('\n').filter(Boolean);
+        return `<div class="ev-wordlist"><ul>${lines.map(l=>'<li>'+escapeHtml(l)+'</li>').join('')}</ul></div>`;
+      }
+      if (['fill','open','choice','truefalse','order','match'].includes(b.type)) {
+        exerciseIndex++;
+        if (b.type === 'fill') return renderInlineFill(b, exerciseIndex);
+        if (b.type === 'choice') {
+          return `<div class="ev-item" data-tid="${b.id}" data-type="choice" data-correct="${escapeHtml(b.correct||'')}">
+            <span class="ev-num">${exerciseIndex}.</span>
+            <div class="ev-q">${escapeHtml(b.question||'')}</div>
+            <div class="task-choices">${(b.options||[]).map(o=>`<label class="choice-label"><input type="radio" name="ans_${b.id}" value="${escapeHtml(o)}"> ${escapeHtml(o)}</label>`).join('')}</div>
+          </div>`;
+        }
+        if (b.type === 'truefalse') {
+          return `<div class="ev-item" data-tid="${b.id}" data-type="truefalse" data-correct="${escapeHtml(b.correct||'true')}">
+            <span class="ev-num">${exerciseIndex}.</span>
+            <div class="ev-q">${escapeHtml(b.question||'')}</div>
+            <div class="task-choices">
+              <label class="choice-label"><input type="radio" name="ans_${b.id}" value="true"> Верно</label>
+              <label class="choice-label"><input type="radio" name="ans_${b.id}" value="false"> Неверно</label>
+            </div>
+          </div>`;
+        }
+        if (b.type === 'order') {
+          const bank=(b.correct||'').split(/\s+/).filter(Boolean).sort(()=>Math.random()-0.5);
+          return `<div class="ev-item" data-tid="${b.id}" data-type="order" data-correct="${escapeHtml(b.correct||'')}">
+            <span class="ev-num">${exerciseIndex}.</span>
+            <div class="ev-q">${escapeHtml(b.question||'')}</div>
+            <p class="word-bank">${bank.map(escapeHtml).join(' · ')}</p>
+            <input class="task-open" placeholder="Собери предложение" />
+          </div>`;
+        }
+        if (b.type === 'match') {
+          const pairs=(b.pairs||'').split(',').map(x=>x.trim().split('='));
+          return `<div class="ev-item" data-tid="${b.id}" data-type="match">
+            <span class="ev-num">${exerciseIndex}.</span>
+            <div class="ev-q">${escapeHtml(b.question||'')}</div>
+            <div class="match-task">${pairs.map(p=>`<label>${escapeHtml(p[0]||'')} → <input class="match-answer" data-expected="${escapeHtml(p[1]||'')}" /></label>`).join('')}</div>
+          </div>`;
+        }
+        return `<div class="ev-item" data-tid="${b.id}" data-type="open">
+          <span class="ev-num">${exerciseIndex}.</span>
+          <div class="ev-q">${escapeHtml(b.question||'')}</div>
+          <textarea class="task-open" rows="2" placeholder="Твой ответ..."></textarea>
+        </div>`;
+      }
+      return '';
+    }).join('');
+    return `<section class="ev-section" id="ev-sec-${sIdx}" data-sec="${sIdx}">
+      <h3 class="ev-section-title">${escapeHtml(sec.title)}</h3>
+      ${body}
+    </section>`;
+  }).join('');
+
+  const sectionsNav = sections.map((s,i) =>
+    `<button type="button" class="ev-sec-btn ${i===0?'active':''}" data-sec="${i}">${escapeHtml(s.title)}</button>`
+  ).join('');
+
+  const cls = classes.find(c => c.id === currentClassId);
+  const remoteName = isTeacher
+    ? ((cls?.students || [])[0]?.name || 'Ученик')
+    : (cls?.teacherName || 'Учитель');
+  const localName = currentUser?.name || 'Вы';
+  const inCall = !!(currentCall || localStream);
+
+  view.innerHTML = `
+    <div class="classroom ${inCall ? 'in-call' : ''}">
+      <header class="cr-top cr-top-compact">
+        <button type="button" class="cr-back" id="cr-back" title="Назад">←</button>
+        <div class="cr-heading"><strong>${escapeHtml(lesson.title)}</strong><span>${escapeHtml(cls?.name || 'Класс')}</span></div>
+        <div class="cr-layout-switch" role="group" aria-label="Вид урока">
+          <button type="button" class="cr-layout-btn" data-layout="mobile">Телефон</button>
+          <button type="button" class="cr-layout-btn active" data-layout="desktop">ПК</button>
+        </div>
+      </header>
+
+      <div class="cr-body">
+        <main class="cr-lesson">
+          <div class="cr-lesson-tabs">
+            <button type="button" class="cr-tab active">Урок</button>
+            <button type="button" class="cr-tab" id="cr-tab-hw">Домашняя работа</button>
+          </div>
+          <div class="cr-lesson-scroll" id="ev-exercises">
+            <div class="cr-lesson-title">
+              <span class="badge">${escapeHtml(lesson.level||'')}</span>
+              <h2>${escapeHtml(lesson.title)}</h2>
+              <p class="muted">${escapeHtml(lesson.description||'')}</p>
+            </div>
+            ${mainHtml}
+            <div id="tasks-result" class="tasks-result"></div>
+          </div>
+          <div class="cr-lesson-scroll hidden" id="ev-homework-panel">
+            <div class="cr-lesson-title"><span class="badge">Домашняя работа</span><h2>${escapeHtml(lesson.title)}</h2>
+            <p class="muted">${lesson.isHomework ? 'Это домашнее задание. Выполни упражнения во вкладке «Урок» и сохрани ответы.' : 'К этому уроку отдельное домашнее задание пока не прикреплено.'}</p></div>
+            ${lesson.deadline ? `<p class="ev-note">Срок выполнения: ${escapeHtml(new Date(lesson.deadline).toLocaleString('ru-RU'))}</p>` : ''}
+            <button type="button" class="btn btn-primary" id="ev-homework-back">Вернуться к заданиям</button>
+          </div>
+          <div class="cr-lesson-toolbar">
+            <button type="button" class="btn btn-outline btn-sm" id="ev-check">Проверить</button>
+            <button type="button" class="btn btn-outline btn-sm" id="ev-show-answers">Показать ответы</button>
+            <button type="button" class="btn btn-outline btn-sm" id="ev-font-down">A−</button>
+            <button type="button" class="btn btn-outline btn-sm" id="ev-font-up">A+</button>
+            <button type="button" class="btn btn-outline btn-sm" id="ev-next-wrong">К ошибке</button>
+            <span class="muted" id="ev-progress-label"></span>
+          </div>
+        </main>
+
+        <aside class="cr-side">
+          <div class="cr-call-card cr-call-launcher">
+            <div class="cr-call-title"><span class="cr-call-dot"></span><b>Видеоурок</b></div>
+            <p class="cr-call-hint">Звонок откроется в одном плавающем окне и останется доступен во время выполнения заданий.</p>
+            <button type="button" class="btn btn-success btn-full" id="cr-call-btn">Подключиться к звонку</button>
+            <button type="button" class="btn btn-outline btn-full" id="cr-join-btn">Войти по коду класса</button>
+          </div>
+          <div class="cr-side-card">
+            <h4>Разделы</h4>
+            <div class="ev-sec-list">${sectionsNav}</div>
+            <button type="button" class="btn btn-outline btn-sm btn-full" id="ev-complete">Завершить урок</button>
+          </div>
+          <div class="cr-side-card teacher-tools" style="${isTeacher?'':'display:none'}">
+            <h4>Учителю</h4>
+            <button type="button" class="btn btn-outline btn-sm btn-full" id="edit-lesson-btn-cr">Редактировать</button>
+            <button type="button" class="btn btn-outline btn-sm btn-full" id="ev-step-mode">По шагам</button>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="cr-bar cr-bar-compact">
+        <span class="cr-local-pill">${escapeHtml(localName)}</span>
+        <span class="cr-call-footnote">Управление камерой, микрофоном и завершением — в плавающем окне звонка.</span>
+        <button type="button" class="btn btn-outline btn-sm" id="cr-save-answers">Сохранить ответы</button>
+      </footer>
+    </div>`;
+
+  view.querySelectorAll('.ev-flashcard').forEach(card=>card.addEventListener('click',()=>{const flipped=card.classList.toggle('flipped');card.innerHTML=flipped?`<b>${escapeHtml(card.dataset.back)}</b><span>Нажми, чтобы вернуть слово</span>`:`<b>${escapeHtml(card.dataset.front)}</b><span>Нажми, чтобы увидеть перевод</span>`;}));
+
+  // Delegated handlers keep dynamically rendered lesson controls responsive on touch and desktop.
+  const lessonRoot = view.querySelector('.classroom');
+  if (lessonRoot) {
+    lessonRoot.addEventListener('input', () => { scheduleSaveAnswers(lesson.id); updateProgressLabel(); });
+    lessonRoot.addEventListener('change', () => { scheduleSaveAnswers(lesson.id); updateProgressLabel(); });
+    const lessonTab = lessonRoot.querySelector('.cr-tab:not(#cr-tab-hw)');
+    const homeworkTab = lessonRoot.querySelector('#cr-tab-hw');
+    const exercises = lessonRoot.querySelector('#ev-exercises');
+    const homeworkPanel = lessonRoot.querySelector('#ev-homework-panel');
+    lessonTab?.addEventListener('click', () => { lessonTab.classList.add('active'); homeworkTab?.classList.remove('active'); exercises?.classList.remove('hidden'); homeworkPanel?.classList.add('hidden'); });
+    homeworkTab?.addEventListener('click', () => { homeworkTab.classList.add('active'); lessonTab?.classList.remove('active'); exercises?.classList.add('hidden'); homeworkPanel?.classList.remove('hidden'); });
+  }
+
+  // Attach streams if call already running
+  syncClassroomVideos();
+
+  // Restore saved answers
+  restoreLessonAnswers(lesson.id);
+
+  view.querySelectorAll('.ev-sec-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      view.querySelectorAll('.ev-sec-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('ev-sec-' + btn.dataset.sec)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  document.getElementById('ev-homework-back')?.addEventListener('click', () => document.querySelector('#lesson-view .cr-tab:not(#cr-tab-hw)')?.click());
+  document.getElementById('cr-back')?.addEventListener('click', () => {
+    document.body.classList.remove('classroom-mode');
+    showPage('class-view');
+  });
+  const savedLayout = localStorage.getItem('azena_lesson_layout') || (window.matchMedia?.('(max-width: 760px)').matches ? 'mobile' : 'desktop');
+  setLessonLayout(savedLayout);
+  view.querySelectorAll('[data-layout]').forEach(btn => btn.addEventListener('click', () => setLessonLayout(btn.dataset.layout)));
+  document.getElementById('ev-check')?.addEventListener('click', () => {
+    checkEdvibeAnswers(lesson);
+    updateProgressLabel();
+  });
+  document.getElementById('ev-show-answers')?.addEventListener('click', () => showAllAnswers(lesson));
+  document.getElementById('ev-font-up')?.addEventListener('click', () => changeExerciseFont(1));
+  document.getElementById('ev-font-down')?.addEventListener('click', () => changeExerciseFont(-1));
+  document.getElementById('ev-next-wrong')?.addEventListener('click', jumpToNextWrong);
+  document.getElementById('ev-complete')?.addEventListener('click', markLessonComplete);
+  document.getElementById('ev-step-mode')?.addEventListener('click', () => {
+    document.body.classList.remove('classroom-mode');
+    lessonStepIndex = 0;
+    renderLessonStepMode(lesson, isTeacher);
+  });
+  document.getElementById('edit-lesson-btn-cr')?.addEventListener('click', editCurrentLesson);
+  document.getElementById('cr-call-btn')?.addEventListener('click', () => {
+    const code = cls?.code || '';
+    const codeEl = document.getElementById('live-room-code');
+    if (codeEl) codeEl.value = code;
+    joinLiveClassroom('host').then(() => setTimeout(syncClassroomVideos, 800));
+  });
+  document.getElementById('cr-join-btn')?.addEventListener('click', () => {
+    const code = cls?.code || '';
+    const codeEl = document.getElementById('live-room-code');
+    if (codeEl) codeEl.value = code;
+    joinLiveClassroom('join').then(() => setTimeout(syncClassroomVideos, 800));
+  });
+  document.getElementById('cr-save-answers')?.addEventListener('click', () => {
+    saveLessonAnswers(lesson.id);
+    alert('Ответы сохранены на этом устройстве');
+  });
+  document.getElementById('cr-fs')?.addEventListener('click', () => {
+    const root = view.querySelector('.classroom');
+    if (!document.fullscreenElement) root?.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  });
+
+  view.querySelectorAll('.ev-blank').forEach((input, idx, arr) => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const next = arr[idx + 1];
+        if (next) next.focus();
+        else document.getElementById('ev-check')?.click();
+      }
+    });
+    input.addEventListener('input', () => {
+      input.classList.remove('blank-ok', 'blank-bad');
+      scheduleSaveAnswers(lesson.id);
+    });
+  });
+  updateProgressLabel();
+}
+
+function setLessonLayout(mode) {
+  const normalized = mode === 'mobile' ? 'mobile' : 'desktop';
+  document.querySelector('.classroom')?.classList.toggle('lesson-mobile-layout', normalized === 'mobile');
+  document.querySelector('.classroom')?.classList.toggle('lesson-desktop-layout', normalized === 'desktop');
+  document.querySelectorAll('.cr-layout-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.layout === normalized));
+  try { localStorage.setItem('azena_lesson_layout', normalized); } catch (_) {}
+}
+
+function syncClassroomVideos() {
+  // The lesson and the video page use the same PeerJS streams and the same floating call window.
+  // No second classroom video element is created, so audio/video cannot drift out of sync.
+  if (currentCall || localStream) showPip();
+}
+
+function syncCrCtrlIcons() {
+  setIconBtn(document.getElementById('cr-mic'), isMicOn ? 'mic' : 'mic-off');
+  setIconBtn(document.getElementById('cr-cam'), isCamOn ? 'cam' : 'cam-off');
+}
+
+function changeExerciseFont(dir) {
+  const el = document.getElementById('ev-exercises');
+  if (!el) return;
+  const cur = parseFloat(getComputedStyle(el).fontSize) || 16;
+  el.style.fontSize = Math.max(13, Math.min(22, cur + dir * 1.5)) + 'px';
+}
+
+function jumpToNextWrong() {
+  const wrong = document.querySelector('#ev-exercises .ev-item.is-wrong');
+  wrong?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function showAllAnswers(lesson) {
+  document.querySelectorAll('#ev-exercises .ev-item').forEach(item => {
+    const type = item.dataset.type;
+    const correct = item.dataset.correct || '';
+    if (type === 'fill' || type === 'order') {
+      const input = item.querySelector('.ev-blank, .task-open');
+      if (input && correct) { input.value = correct; input.classList.add('blank-ok'); input.classList.remove('blank-bad'); }
+    } else if (type === 'choice' || type === 'truefalse') {
+      const option = [...item.querySelectorAll('input[type=radio]')].find(r => r.value === correct);
+      if (option) option.checked = true;
+    } else if (type === 'match') {
+      item.querySelectorAll('.match-answer').forEach(input => { input.value = input.dataset.expected || ''; input.classList.add('blank-ok'); });
+    }
+    item.classList.remove('is-wrong'); item.classList.add('is-correct');
+  });
+  updateProgressLabel();
+}
+
+function lessonAnswersKey(lessonId) {
+  return `azena_ans:${currentUser?.id || 'x'}:${currentClassId}:${lessonId}`;
+}
+function saveLessonAnswers(lessonId) {
+  const data = {};
+  document.querySelectorAll('#ev-exercises .ev-item').forEach(item => {
+    const id = item.dataset.tid;
+    const input = item.querySelector('.ev-blank, .task-open, textarea.task-open');
+    if (input) data[id] = input.value;
+    const checked = item.querySelector('input[type=radio]:checked');
+    if (checked) data[id] = checked.value;
+    const matches = [...item.querySelectorAll('.match-answer')];
+    if (matches.length) data[id] = matches.map(x => x.value);
+  });
+  localStorage.setItem(lessonAnswersKey(lessonId), JSON.stringify(data));
+}
+let _ansSaveTimer = null;
+function scheduleSaveAnswers(lessonId) {
+  clearTimeout(_ansSaveTimer);
+  _ansSaveTimer = setTimeout(() => saveLessonAnswers(lessonId), 400);
+}
+function restoreLessonAnswers(lessonId) {
+  try {
+    const data = JSON.parse(localStorage.getItem(lessonAnswersKey(lessonId)) || '{}');
+    document.querySelectorAll('#ev-exercises .ev-item').forEach(item => {
+      const id = item.dataset.tid;
+      if (data[id] == null) return;
+      const input = item.querySelector('.ev-blank, .task-open, textarea.task-open');
+      if (input && !Array.isArray(data[id])) input.value = data[id];
+      const radio = item.querySelector(`input[type=radio][value="${CSS.escape(String(data[id]))}"]`);
+      if (radio) radio.checked = true;
+      if (Array.isArray(data[id])) item.querySelectorAll('.match-answer').forEach((el, i) => { el.value = data[id][i] || ''; });
+    });
+  } catch (_) {}
+}
+function updateProgressLabel() {
+  const items = document.querySelectorAll('#ev-exercises .ev-item');
+  const filled = [...items].filter(i => {
+    const input = i.querySelector('.ev-blank, .task-open, textarea.task-open');
+    if (input) return !!(input.value || '').trim();
+    const matches = [...i.querySelectorAll('.match-answer')];
+    if (matches.length) return matches.some(x => x.value.trim());
+    return !!i.querySelector('input[type=radio]:checked');
+  }).length;
+  const el = document.getElementById('ev-progress-label');
+  if (el) el.textContent = items.length ? `Заполнено ${filled}/${items.length}` : '';
+}
+
+function checkEdvibeAnswers(lesson) {
+  let correct = 0, total = 0;
+  document.querySelectorAll('#ev-exercises .ev-item').forEach(item => {
+    const type = item.dataset.type;
+    if (type === 'open') {
+      total++;
+      const val = item.querySelector('.task-open')?.value.trim();
+      if (val) { correct++; item.classList.add('is-correct'); item.classList.remove('is-wrong'); }
+      else { item.classList.add('is-wrong'); item.classList.remove('is-correct'); }
+      return;
+    }
+    if (type === 'fill' || type === 'order') {
+      total++;
+      const input = item.querySelector('.task-open, .ev-blank');
+      const user = (input?.value || '').trim().toLowerCase();
+      const ans = (item.dataset.correct || '').trim().toLowerCase();
+      if (user && user === ans) {
+        correct++;
+        item.classList.add('is-correct');
+        item.classList.remove('is-wrong');
+        if (input) { input.classList.add('blank-ok'); input.classList.remove('blank-bad'); }
+      } else {
+        item.classList.add('is-wrong');
+        item.classList.remove('is-correct');
+        if (input) { input.classList.add('blank-bad'); input.classList.remove('blank-ok'); }
+      }
+      return;
+    }
+    if (type === 'choice' || type === 'truefalse') {
+      total++;
+      const checked = item.querySelector('input[type=radio]:checked');
+      const user = checked ? checked.value : '';
+      if (String(user) === String(item.dataset.correct)) {
+        correct++; item.classList.add('is-correct'); item.classList.remove('is-wrong');
+      } else {
+        item.classList.add('is-wrong'); item.classList.remove('is-correct');
+      }
+      return;
+    }
+    if (type === 'match') {
+      total++;
+      const inputs = [...item.querySelectorAll('.match-answer')];
+      const ok = inputs.length && inputs.every(f => f.value.trim().toLowerCase() === (f.dataset.expected||'').toLowerCase());
+      if (ok) { correct++; item.classList.add('is-correct'); item.classList.remove('is-wrong'); }
+      else { item.classList.add('is-wrong'); item.classList.remove('is-correct'); }
+    }
+  });
+  const box = document.getElementById('tasks-result');
+  if (box) {
+    box.className = 'tasks-result show';
+    box.innerHTML = `<strong>Результат: ${correct} из ${total}</strong>`;
+  }
+}
+
 function renderLessonStepMode(lesson, isTeacher) {
-  const tasks = lesson.tasks || [];
+  const legacyBlocks = lessonBlocksFromLegacy(lesson);
+  const tasks = (lesson.tasks && lesson.tasks.length) ? lesson.tasks : blocksToTasks(legacyBlocks);
   const view = document.getElementById('lesson-view');
   if (!view || !tasks.length) return;
 
@@ -1939,6 +2665,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Daily PIP controls
+  const relayToggle = document.getElementById('force-relay-toggle');
+  if (relayToggle) {
+    relayToggle.checked = localStorage.getItem('azena_force_relay') === '1';
+    relayToggle.addEventListener('change', () => {
+      forceRelay = relayToggle.checked;
+      localStorage.setItem('azena_force_relay', forceRelay ? '1' : '0');
+      setStatus(forceRelay ? 'Надёжный режим: ON (трафик через TURN)' : 'Надёжный режим: OFF');
+    });
+  }
   document.getElementById('host-live-btn')?.addEventListener('click', () => joinLiveClassroom('host'));
   document.getElementById('join-live-btn')?.addEventListener('click', () => joinLiveClassroom('join'));
   document.getElementById('pip-mic')?.addEventListener('click', dailyToggleMic);
@@ -1962,6 +2697,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('personal-vocab-add')?.addEventListener('click',addPersonalVocabFromForm);
   document.getElementById('personal-vocab-practice')?.addEventListener('click',practicePersonalVocab);
   document.getElementById('save-board')?.addEventListener('click',saveBoard);
+  ['lesson-title','lesson-level','lesson-category','lesson-description'].forEach(id=>document.getElementById(id)?.addEventListener('input',scheduleBuilderDraft));
+  document.getElementById('lesson-canvas')?.addEventListener('input',scheduleBuilderDraft);
+  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&document.getElementById('page-create-lesson')?.classList.contains('active')){e.preventDefault();document.getElementById('lesson-form')?.requestSubmit();}});
+  document.getElementById('restore-lesson-draft')?.addEventListener('click',restoreBuilderDraft);
+  document.querySelectorAll('.palette-item[data-block]').forEach(btn => {
+    btn.addEventListener('click', () => addLessonBlock(btn.dataset.block));
+  });
+  document.getElementById('lesson-preview-btn')?.addEventListener('click', () => {
+    const blocks = collectBlocks();
+    if (!blocks.length) return alert('Сначала добавьте блоки');
+    alert('Превью: в уроке будет ' + blocks.length + ' блоков.\nПервый: ' + (BLOCK_LABELS[blocks[0].type] || blocks[0].type));
+  });
   document.querySelectorAll('.tpl-btn').forEach(btn => {
     btn.addEventListener('click', () => applyLessonTemplate(btn.dataset.tpl));
   });
